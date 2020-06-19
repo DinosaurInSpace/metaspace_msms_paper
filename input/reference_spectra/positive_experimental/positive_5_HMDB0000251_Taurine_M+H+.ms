@@ -1,0 +1,3 @@
+mz	intensity	rel.intensity	exactmass	explanation
+108.010040	24324.91	6.21	108.011376	C2H5NO2S
+126.021941	0.00	0.00	126.021941	C2H7NO3S
