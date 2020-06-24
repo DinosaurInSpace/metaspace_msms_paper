@@ -26,11 +26,9 @@ I. Workflow steps on spotted standards include:
     
     10. Generate psuedo-MS/MS spectra from ISF data.
     
-    11. Score predicted, experimental, and psuedo-MS/MS spectra together.
-    
-    12. Plot examples.
-    
-    13. Carry well-behaved molecules forward.
+    11. Compare predicted, experimental, and psuedo-MS/MS spectra.
+
+    12. Pick winners and carry well-behaved molecules forward.
 
 II. Workflow steps on real samples include:
 

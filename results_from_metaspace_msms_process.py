@@ -89,8 +89,8 @@ def extract_results_metaspace(ds_id, ms_out):
 
     ms_out = ms_out[(ms_out.adduct == '[M]+')|(ms_out.adduct == '[M]-')]
     ms_out['n_ids_formula'] = ms_out.moleculeIds.apply(lambda x: len(x))
-    gc = ['formula', 'adduct', 'mz', 'fdr', 'moleculeNames']
-    ms_out = ms_out[gc]
+    # gc = ['formula', 'adduct', 'mz', 'fdr', 'moleculeNames']
+    # ms_out = ms_out[gc]
     ms_out['ds_id'] = ds_id
     ms_out = split_data_frame_list(ms_out, 'moleculeNames')
     ms_out['moleculeNames'] = ms_out['moleculeNames'].apply(lambda x: x.split('_', 2))
@@ -105,8 +105,9 @@ def extract_results_metaspace(ds_id, ms_out):
     df = df.groupby('id').sum()
     ms_out = ms_out.merge(df, on='id', how='left')
     gc = ['id', 'par_frag', 'name', 'ds_id', 'formula',
-          'adduct', 'mz', 'fdr',
-          'parent_y', 'n_frag_y']
+          'adduct', 'mz',
+          'parent_y', 'n_frag_y',
+          'fdr', 'msm', 'intensity']
     ms_out = ms_out[gc].copy(deep=True)
 
     # Label with number of degenerate formulas at each mass
@@ -114,7 +115,7 @@ def extract_results_metaspace(ds_id, ms_out):
     df = df.groupby('formula').nunique()
     df = df.iloc[:, 0:1]
     ms_out = ms_out.merge(df, on='formula', how='left')
-    ms_out = ms_out.iloc[:,0:10]
+    # ms_out = ms_out.iloc[:,0:10]
 
     return ms_out
 
