@@ -36,7 +36,7 @@ __status__ = "Development"
 def ref_spectra_encoder(path):
     # Encodes Sirius consensus tree *.ms spectra as
     # [(mz, value)1...(mz, value)n]
-    df = pd.read_csv(path, sep="t")
+    df = pd.read_csv(path, sep="\t")
     df = df[['mz', 'intensity']]
     df['spectra'] = df.apply(lambda x: (x.mz, x.intensity), axis=1)
     return list(df.spectra)
