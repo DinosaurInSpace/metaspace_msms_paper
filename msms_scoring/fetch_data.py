@@ -139,15 +139,14 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
     # for mol_ids in res.anns.moleculeIds:
     #     detected_frag_ids.update(mol_ids)
     #     detected_mol_ids.update(PARSE_MOL_ID.match(mol_id).groups()[0] for mol_id in mol_ids)
-    detected_formulas = set(res.anns.ionFormula)
 
     # Exclude fragments of the wrong polarity
     df = get_msms_df()
     df = df[df.polarity == res.sm_ds.polarity.lower()].copy()
-    min_mz = lo_mz if lo_mz is not None else res.anns.mz.min() - 0.1
-    max_mz = hi_mz if hi_mz is not None else res.anns.mz.max() + 0.1
+    min_mz = max(res.anns.mz.min() - 0.1, lo_mz or 0)
+    max_mz = min(res.anns.mz.max() + 0.1, hi_mz or 2000)
     df['in_range'] = (df.mz >= min_mz) & (df.mz <= max_mz)
-    df['is_detected'] = df.formula.isin(detected_formulas) & df['in_range']
+    df['is_detected'] = df.formula.isin(res.anns.ionFormula) & df['in_range']
     df['parent_is_detected'] = df.hmdb_id.isin(df[df.is_parent & df.is_detected].hmdb_id)
     href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db={res.db_id}&sort=mz&fdr=0.5&q='
     df['ann_href'] = href_base + df.formula
@@ -216,6 +215,8 @@ def get_msms_results_for_ds(ds_id, mz_range=None):
             res.name = f'{res.name} ({mz_range[0]}-{mz_range[1]})'
         add_coloc_matrix(res)
         add_result_dfs(res, *mz_range)
+        if mz_range:
+            res.ds_coloc = res.ds_coloc.reindex(index=res.anns_df.index, columns=res.anns_df.index)
         res.ds_images = None  # Save memory/space as downstream analysis doesn't need this
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         pickle.dump(res, cache_path.open('wb'))

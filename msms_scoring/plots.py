@@ -1,10 +1,14 @@
 # pip install numpy pandas scipy sklearn enrichmentanalysis-dvklopfenstein metaspace2020
+from functools import lru_cache
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 from msms_scoring.datasets import spotting_ds_ids, whole_body_ds_ids
+from msms_scoring.fetch_data import get_msms_df
 from msms_scoring.metrics import get_ds_results
 
 #%%
@@ -14,13 +18,13 @@ plt.rcParams['figure.figsize'] = 15, 10
 
 #%%
 # Plot distributions of p-value split up by whether the molecule was expected or unexpected
-def plot_grid(items, func, title=None, save_as=None):
+def plot_grid(items, func, title=None, save_as=None, layout_args={}):
     plt.close('all')
     w = int(len(items) ** 0.5 * 4 / 3)
     h = int(np.ceil(len(items) / w))
     fig, axs = plt.subplots(h, w)
     if title:
-        fig.tight_layout(rect=(0,0,1,0.95))
+        fig.tight_layout(rect=(0,0,1,0.95), **layout_args)
         fig.suptitle(title)
 
     for i, item in enumerate(items):
@@ -56,7 +60,7 @@ def plot_metric_values(ax, ds, field, filter, title):
     df = df[df.coloc > 0]
 
     C = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-    UA, EA, E, U, EI = C[:5]
+    EA, UA, E, U, EI = C[:5]
 
     if filter == 'isomer':
         data = [
@@ -136,22 +140,31 @@ ds_sets = [
 #         )
 
 # One plot per field
-for ds_set, ds_ids in ds_sets:
-    for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
-        dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-        # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
-        for field in ['coloc_int_fdr']:
-            fig = plot_grid(
-                dss,
-                lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
-                title=field + ' ' + title,
-                save_as=f'./mol_scoring/metric histograms/{ds_set}_all_dss_{field}_{filter}.png'
-            )
+# for ds_set, ds_ids in ds_sets:
+#     for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
+#         dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+#         # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
+#         for field in ['coloc_int_fdr']:
+#             fig = plot_grid(
+#                 dss,
+#                 lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
+#                 title=field + ' ' + title,
+#                 save_as=f'./mol_scoring/metric histograms/{ds_set}_all_dss_{field}_{filter}.png'
+#             )
 
+# One plot per field with different m/z limits
+ds_ids = ['2020-06-19_16h39m10s','2020-06-19_16h39m12s']
+for filter, title in [('analogue', 'analogues')]:
+    dss = [get_ds_results(ds_id, mz_range=mz_range) for mz_range in [None, (100, 1000)] for ds_id in ds_ids]
+    for field in ['coloc_fdr', 'coloc_int_fdr']:
+        fig = plot_grid(
+            dss,
+            lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
+            title=field + ' ' + title,
+            save_as=f'./mol_scoring/metric histograms/mz_ranges_all_dss_{field}_{filter}.png'
+        )
 
-#%%
-
-# Histogram of # of frags detected vs expected
+#%% Histogram of # of frags detected vs expected
 
 def plot_n_frags_hist2d(ds, save_as=None):
     global df,a,b
@@ -192,5 +205,54 @@ for ds_set, ds_ids in [('spotting', spotting_ds_ids), ('whole_body', whole_body_
         plot_n_frags_hist2d(ds, f'./mol_scoring/metric histograms/{ds_set}_n_frags_{ds.name}.png')
 
 # plot_n_frags_hist2d(get_ds_results('2020-06-19_16h39m10s')).show()
+#%% Plot #frags for msms_df
+msms_df = get_msms_df()
+msms_df = msms_df.merge(
+    msms_df[msms_df.is_parent].set_index(['polarity','hmdb_id']).mz.rename('parent_mz'),
+    left_on=['polarity','hmdb_id'], right_index=True
+)
+@lru_cache(maxsize=None)
+def make_n_frags_df(pol, is_lipid, max_mz=None):
+    df = msms_df[(msms_df.polarity == pol) & (msms_df.is_lipid == is_lipid) & (max_mz is None or msms_df.parent_mz <= max_mz)]
+    print((pol, is_lipid, max_mz), len(df))
+    CATS = [f'# parents with >= {j} frags' if j else '# parents' for j in range(5)]
+    results = []
+    for mz in range(1, 200):
+        vc = df[df.mz >= mz].groupby('hmdb_id').id.count().value_counts().sort_index(ascending=False).cumsum()
+        for j in range(5):
+            results.append((CATS[j], mz, vc.get(j + 1)))
+
+    results = pd.DataFrame(results, columns=['n_frags', 'mz', 'count'])
+    results['n_frags'] = results['n_frags'].astype(pd.Categorical(CATS))
+    results['pct'] = results['count'] / len(df[df.is_parent]) * 100
+    return results
+
+#%%
+def make_n_frags_plot(ax, pol, is_lipid, relative, max_mz=None):
+    df = make_n_frags_df(pol, is_lipid, max_mz)
+    if relative:
+        ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter())
+    sns.lineplot('mz', 'pct' if relative else 'count', 'n_frags', data=df, ax=ax)
+    ax.set_title(f'{pol} {"non-" if not is_lipid else ""}lipids')
+    ax.set_xlabel('minimum m/z')
+    ax.set_ylabel(None)
+    ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=12))
+    ax.set_ylim(ymin=0)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles=handles[1:], labels=labels[1:])
+    ax.grid(axis='y')
+
+
+for relative in [False, True]:
+    for max_mz in [None, 600]:
+        plt.close('all')
+        fig = plot_grid(
+            [('positive', False), ('positive', True), ('negative', False), ('negative', True)],
+            lambda ax, args: make_n_frags_plot(ax, *args, relative, max_mz),
+            title=f'# of fragments in m/z range' + (f' for mols <= {max_mz} Da' if max_mz else ''),
+            save_as=f'./mol_scoring/n_frags_in_mz_range/n_frags_in_mz_range{"_max" + str(max_mz) if max_mz else ""}{"_pct" if relative else ""}.png',
+            layout_args={'h_pad': 4}
+        )
+
 #%%
 

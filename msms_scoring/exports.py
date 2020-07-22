@@ -243,7 +243,7 @@ export({
 PARAMS = ['unfiltered', 'no_off_sample', 'no_zero_coloc', 'no_structural_analogues', 'all_filters']
 DS_NAMES = []
 METRICS = ['random', 'coloc_fdr', 'coloc_int_fdr']
-MZ_RANGES = ['full', 'clipped']
+MZ_RANGES = ['full', 'semi', 'clipped']
 metric_scores = []
 metric_counts = []
 ds_ids = [
@@ -259,6 +259,12 @@ for ds_id in ds_ids:
     for params in PARAMS:
         add_metric_scores(ds, params)
         extra = {'ds': ds_name, 'params': params, 'mz_range': 'full'}
+        metric_scores.append(ds.metric_scores.assign(**extra))
+        metric_counts.append({**ds.metric_counts, **extra})
+    # Semi-clipped results (Unclipped results for mols that pass the filter while clipped)
+    for params in PARAMS:
+        add_metric_scores(ds, params, min_mz=100)
+        extra = {'ds': ds_name, 'params': params, 'mz_range': 'semi'}
         metric_scores.append(ds.metric_scores.assign(**extra))
         metric_counts.append({**ds.metric_counts, **extra})
     # Clipped results
@@ -279,8 +285,8 @@ metric_counts = (metric_counts
                  .reindex(index=product(DS_NAMES, PARAMS), columns=product(['n_expected','n_unexpected'], MZ_RANGES)))
 mAP_stats = metric_scores.groupby(['mz_range', 'params', 'metric']).avg_prec.describe().drop(columns=['count']).reindex(product(MZ_RANGES, PARAMS, METRICS))
 mAP_vs_random = (mAP_stats.reset_index()
-                 .groupby(['mz_range', 'params'], as_index=False)
-                 .apply(lambda df: df.assign(mean=df['mean'] / df['mean'][df.metric == 'random'].mean()))
+                 .groupby(['params'], as_index=False)
+                 .apply(lambda df: df.assign(mean=df['mean'] / df['mean'][(df.metric == 'random') & (df.mz_range == 'full')].mean()))
                  .pivot_table(index=['params'], columns=['metric', 'mz_range'], values='mean')
                  .reindex(index=PARAMS, columns=product(METRICS, MZ_RANGES)))
 mAP_by_params = (mAP_stats.reset_index()

@@ -270,15 +270,26 @@ def average_precision(s):
     return np.sum((np.cumsum(s) / (np.arange(len(s)) + 1)) * s) / np.count_nonzero(s)
 
 
-def add_metric_scores(res: DSResults, params: str = 'unfiltered'):
+def add_metric_scores(res: DSResults, params: str = 'unfiltered', min_mz=None):
     scores = []
     df = res.mols_df.sort_values('is_expected')
 
     assert params in ("unfiltered", "no_off_sample", "no_zero_coloc", "no_structural_analogues", "all_filters")
+    if min_mz is not None:
+        df = df[df.mz > min_mz]
     if params == 'all_filters' or params == 'no_off_sample':
         df = df[~df.off_sample.astype(np.bool)]
     if params == 'all_filters' or params == 'no_zero_coloc':
-        df = df[df.coloc > 0]
+        if min_mz is not None:
+            zero_coloc = (
+                res.ann_mols_df[lambda df: df.is_detected].groupby(['hmdb_id', 'parent_formula'])
+                .apply(lambda grp: any(res.get_coloc(row.formula, grp.name[1]) > 0 for id, row in grp.iterrows() if row.formula != grp.name[1] and row.mz >= min_mz))
+                .reset_index(level='parent_formula', drop=True)
+            )
+            df = df[zero_coloc[df.index] > 0]
+        else:
+            df = df[df.coloc > 0]
+
     if params == 'all_filters' or params == 'no_structural_analogues':
         df = df[~df.is_redundant]
 
@@ -327,7 +338,7 @@ def get_ds_results(ds_id, mz_range=None):
     # add_enrichment_analysis(res)
     # add_p_values(res)
     add_fdr(res)
-    add_metric_scores(res)
+    # add_metric_scores(res)
     add_filter_reason(res)
     return res
 
