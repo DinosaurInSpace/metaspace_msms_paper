@@ -36,7 +36,7 @@ def plot_grid(items, func, title=None, save_as=None):
     return fig
 
 
-def plot_metric_values(ax, ds, field, title):
+def plot_metric_values(ax, ds, field, filter, title):
     if field == 'group_enrich_uncorr':
         # only include groups with more than 1 mol
         formulas = ds.ann_mols_df.groupby('formula').hmdb_id.count()
@@ -55,10 +55,52 @@ def plot_metric_values(ax, ds, field, title):
         df = ds.mols_df[ds.mols_df.is_detected]
     df = df[df.coloc > 0]
 
-    good = df[df.is_expected][field]
-    bad = df[~df.is_expected & ~df.is_lipid][field]
-    ugly = df[~df.is_expected & df.is_lipid][field]
-    data = [good, bad, ugly]
+    C = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    UA, EA, E, U, EI = C[:5]
+
+    if filter == 'isomer':
+        data = [
+            df[df.is_expected],
+            df[~df.is_expected & df.is_expected_isomer],
+            df[~df.is_expected & ~df.is_expected_isomer],
+        ]
+        label = [
+            'Expected mols',
+            'Isomers of expected mols',
+            'Unexpected mols'
+        ]
+        color = [E, EI, U]
+    elif filter == 'analogue':
+        data = [
+            df[df.is_expected],
+            df[~df.is_expected & df.is_expected_isomer & df.is_redundant],
+            df[~df.is_expected & ~df.is_expected_isomer & ~df.is_redundant],
+            df[~df.is_expected & ~df.is_expected_isomer & df.is_redundant],
+        ]
+        label = [
+            'Expected mols',
+            'Analogues of expected mols',
+            'Unexpected mols',
+            'Analogues of unexpected mols',
+        ]
+        color = [E, EA, U, UA]
+    else:
+        data = [
+            df[df.is_expected],
+            df[~df.is_expected & df.is_expected_isomer & df.is_redundant],
+            df[~df.is_expected & df.is_expected_isomer & ~df.is_redundant],
+            df[~df.is_expected & ~df.is_expected_isomer & ~df.is_redundant],
+            df[~df.is_expected & ~df.is_expected_isomer & df.is_redundant],
+        ]
+        label = [
+            'Expected mols',
+            'Analogues of expected',
+            'Non-analogous isomers of expected',
+            'Unexpected mols',
+            'Analogues of unexpected mols',
+        ]
+        color = [E, EA, EI, U, UA]
+    data = [df[field] for df in data]
     range = {
         'tfidf': (1, 3),
         'coloc_fdr': (0, 1),
@@ -68,46 +110,44 @@ def plot_metric_values(ax, ds, field, title):
         'msm_coloc_fdr': (0, 1),
         'msm_x_coloc_fdr': (0, 1),
     }.get(field, None)
-    bins = 40 if (len(good) + len(bad) + len(ugly)) > 200 else 20
-    label = [
-        f'Expected mols ({len(good)})',
-        f'Unexpected non-lipids ({len(bad)})',
-        f'Unexpected lipids ({len(ugly)})',
-    ]
+    bins = 40 if sum(map(len, data)) > 200 else 20
+    label = [f'{l} ({len(df)})' for l, df in zip(label, data)]
     ax.set_title(title, fontsize=8)
     if range:
         data = [np.clip(d, *range) for d in data]
-    ax.hist(data, bins=bins, range=range, stacked=True, label=label)
+    ax.hist(data, bins=bins, range=range, stacked=True, label=label, color=color)
     ax.legend(loc='upper right')
 
-# One plot per field
 ds_sets = [
     ('spotting', spotting_ds_ids),
-    ('whole_body', whole_body_ds_ids)
+    # ('whole_body', whole_body_ds_ids),
 ]
-for ds_set, ds_ids in ds_sets:
-    dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-    # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr']:
-    for field in ['coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
-        fig = plot_grid(
-            dss,
-            lambda ax, ds: plot_metric_values(ax, ds, field, ds.name),
-            title=field,
-            save_as=f'./mol_scoring/metric histograms/{ds_set}_all_dss_{field}.png'
-        )
-
 # One plot per ds
+# for ds_set, ds_ids in ds_sets:
+#     dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+#     # 'global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80',
+#     fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']
+#     for ds in dss:
+#         fig = plot_grid(
+#             fields,
+#             lambda ax, field: plot_metric_values(ax, ds, field, 'both', field),
+#             title=ds.name,
+#             save_as=f'./mol_scoring/metric histograms/{ds_set}_all_metrics_{ds.name}.png'
+#         )
+
+# One plot per field
 for ds_set, ds_ids in ds_sets:
-    dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-    # 'global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80',
-    fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']
-    for ds in dss:
-        fig = plot_grid(
-            fields,
-            lambda ax, field: plot_metric_values(ax, ds, field, field),
-            title=ds.name,
-            save_as=f'./mol_scoring/metric histograms/{ds_set}_all_metrics_{ds.name}.png'
-        )
+    for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
+        dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+        # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
+        for field in ['coloc_int_fdr']:
+            fig = plot_grid(
+                dss,
+                lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
+                title=field + ' ' + title,
+                save_as=f'./mol_scoring/metric histograms/{ds_set}_all_dss_{field}_{filter}.png'
+            )
+
 
 #%%
 

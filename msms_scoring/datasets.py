@@ -45,8 +45,8 @@ spotting_ds_ids = [
     # '2020-06-19_16h38m19s',  # Lipids don't give good results
     # '2020-06-19_16h39m01s',
     # '2020-06-19_16h39m02s',  # Not in the list VS sent of suggested DSs
-    # '2020-06-19_16h39m04s',
-    # '2020-06-19_16h39m06s',
+    '2020-06-19_16h39m04s',
+    '2020-06-19_16h39m06s',
     '2020-06-19_16h39m08s',
     '2020-06-19_16h39m10s',
     '2020-06-19_16h39m12s',

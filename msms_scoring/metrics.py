@@ -16,7 +16,8 @@ from msms_scoring.fetch_data import DSResults, get_msms_results_for_ds
 # Wider maximum width of pandas columns (needed to see the full lists of molecules)
 
 pd.set_option('max_colwidth', 1000)
-pd.set_option('display.max_rows', 1000)
+pd.set_option('display.max_rows', 50)
+pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 1000)
 #%%
 def add_expected_mols(res: DSResults):
@@ -24,9 +25,24 @@ def add_expected_mols(res: DSResults):
     res.mols_df['is_expected'] = res.mols_df.index.isin(expected_mol_ids)
     res.ann_mols_df['is_expected'] = res.ann_mols_df.hmdb_id.isin(expected_mol_ids)
 
+    expected_formulas = set(res.mols_df[res.mols_df.is_expected].formula)
+    res.mols_df['is_expected_isomer'] = res.mols_df.formula.isin(expected_formulas) & ~res.mols_df.is_expected
+    res.ann_mols_df['is_expected_isomer'] = res.ann_mols_df.parent_formula.isin(expected_formulas) & ~res.ann_mols_df.is_expected
+
+    is_redundant = (
+        res.mols_df
+        .sort_values(['is_expected'], ascending=False)
+        .duplicated('all_frag_formulas')
+        .rename('is_redundant')
+    )
+    res.mols_df['is_redundant'] = is_redundant
+    res.ann_mols_df = res.ann_mols_df.merge(is_redundant, how='left', left_on='hmdb_id', right_index=True)
+
+
 if __name__ == '__main__':
     test_results = get_msms_results_for_ds('2020-06-19_16h39m10s')
     add_expected_mols(test_results)
+    df = test_results.mols_df
 #%%
 
 def add_tfidf_score(res: DSResults):
@@ -59,7 +75,7 @@ def add_tfidf_score(res: DSResults):
         index=terms_df.index,
         name='tfidf',
     )
-    res.mols_df['tfidf'] = tfidf_s
+    res.mols_df['inv_tfidf'] = 1 / tfidf_s
     res.ann_mols_df = res.ann_mols_df.merge(tfidf_s, left_on='hmdb_id', right_index=True)
 
 
@@ -192,7 +208,7 @@ def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
     else:
         bias = len(decoys_df) / len(targets_df)
         fdr_df['fdr_raw'] = fdr_df.decoy_cnt / np.clip(fdr_df.target_cnt, 1, None) / bias
-    fdr_df.sort_values('fdr_raw', inplace=True)
+    fdr_df.sort_values('score', ascending=False, inplace=True)
     fdr_df['fdr'] = np.minimum.accumulate(fdr_df.fdr_raw.iloc[::-1])[::-1]
     return fdr_df[~fdr_df.id.isna()].set_index('id').fdr
 
@@ -200,7 +216,7 @@ def add_fdr(res: DSResults):
     global results
     def coloc_int_score(parent, frags):
         ints = res.anns_df.intensity
-        max_int = ints[parent] * 1.5 if parent in ints else 0
+        max_int = ints[parent] if parent in ints else 0
         return sum(res.get_coloc(parent, f) for f in frags if f in ints.index and max_int > ints[f])
     def coloc_score(parent, frags):
         return sum(res.get_coloc(parent, f) for f in frags)
@@ -247,18 +263,72 @@ def add_fdr(res: DSResults):
 
 if __name__ == '__main__':
     add_fdr(test_results)
-    df = test_results.mols_df.sort_values(['is_expected', 'coloc_fdr']).drop(columns=['parent_n_frags_unfiltered','ann_href','mol_href'])
+    df = test_results.mols_df.sort_values(['is_expected', 'coloc_fdr']).drop(columns=['parent_n_frags_unfiltered','ann_href','mol_href'], errors='ignore')
+# %%
 
+def average_precision(s):
+    return np.sum((np.cumsum(s) / (np.arange(len(s)) + 1)) * s) / np.count_nonzero(s)
+
+
+def add_metric_scores(res: DSResults, params: str = 'unfiltered'):
+    scores = []
+    df = res.mols_df.sort_values('is_expected')
+
+    assert params in ("unfiltered", "no_off_sample", "no_zero_coloc", "no_structural_analogues", "all_filters")
+    if params == 'all_filters' or params == 'no_off_sample':
+        df = df[~df.off_sample.astype(np.bool)]
+    if params == 'all_filters' or params == 'no_zero_coloc':
+        df = df[df.coloc > 0]
+    if params == 'all_filters' or params == 'no_structural_analogues':
+        df = df[~df.is_redundant]
+
+    for m in ['random', 'inv_tfidf', 'global_enrich_uncorr', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'coloc_int_fdr']:
+        avg_prec = None
+        if m in res.mols_df.columns:
+            ranking = df.sort_values(m).is_expected.values
+            avg_prec = average_precision(ranking)
+        elif m == 'random':
+            avg_prec = np.mean([average_precision(df.is_expected.sample(frac=1).values) for i in range(10000)])
+
+        if avg_prec is not None:
+            scores.append({
+                'metric': m,
+                'avg_prec': avg_prec,
+            })
+    res.metric_scores = pd.DataFrame(scores)
+    res.metric_counts = {'n_expected': df.is_expected.sum(), 'n_unexpected': (~df.is_expected).sum()}
+
+if __name__ == '__main__':
+    add_metric_scores(test_results)
+
+#%%
+def add_filter_reason(res):
+    filter_reason = res.mols_df.apply(lambda s: 'off-sample parent' if s.off_sample else 'no coloc' if s.coloc == 0 else 'structural analogue' if s.is_redundant else '', axis=1)
+    res.mols_df['filter_reason'] = filter_reason
+    res.ann_mols_df = res.ann_mols_df.merge(res.mols_df.filter_reason, how='left', left_on='hmdb_id', right_index=True)
+
+if __name__ == '__main__':
+    add_filter_reason(test_results)
+# %%
+def clip_mz_range(res: DSResults, lo_mz, hi_mz):
+    pass
+if __name__ == '__main__':
+    test_results = get_msms_results_for_ds('2020-06-19_16h39m10s')
+    clip_mz_range(test_results, 80, 1000)
+    print(test_results.anns_df.mz.min(), test_results.anns_df.mz.max())
 # %%
 
 @lru_cache(maxsize=None)
-def get_ds_results(ds_id):
-    res = get_msms_results_for_ds(ds_id)
+def get_ds_results(ds_id, mz_range=None):
+    res = get_msms_results_for_ds(ds_id, mz_range)
+    __import__('__main__').res = res
     add_expected_mols(res)
     # add_tfidf_score(res)
     # add_enrichment_analysis(res)
     # add_p_values(res)
     add_fdr(res)
+    add_metric_scores(res)
+    add_filter_reason(res)
     return res
 
 

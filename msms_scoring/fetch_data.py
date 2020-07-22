@@ -28,7 +28,7 @@ def get_msms_df():
     msms_df['frag_idx'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[2]).astype(np.int32)
     msms_df['is_parent'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[3]) == 'p'
     msms_df['mol_name'] = msms_df.name.str.replace("^[^_]+_[^_]+_", "")
-    msms_df['mol_href'] = 'https://hmdb.ca/metabolites/' + msms_df.hmdb_id
+    msms_df['hmdb_href'] = 'https://hmdb.ca/metabolites/' + msms_df.hmdb_id
 
     # Clean up results by converting everything to HMDB IDs and removing items that can't be converted
     msms_df.hmdb_id.rename({
@@ -45,8 +45,16 @@ def get_msms_df():
     msms_df = msms_df[~msms_df.hmdb_id.isin(ids_to_drop)]
     # Add is_lipid column
     hmdb_mols = pickle.load(open('to_metaspace/hmdb_mols.pickle', 'rb'))
-    lipid_ids = [mol['id'] for mol in hmdb_mols if mol['super_class'] == 'Lipids and lipid-like molecules']
+    lipid_ids = [mol['id'] for mol in hmdb_mols if mol['super_class'] == 'Lipids and lipid-like molecules' or mol['mol_name'].startswith('PC(')]
     msms_df['is_lipid'] = msms_df.hmdb_id.isin(lipid_ids)
+    # Add sorted list of fragments for later deduping
+    all_frags = msms_df.groupby(['hmdb_id', 'polarity']).formula.apply(lambda fs: tuple(sorted(fs))).rename('all_frag_formulas')
+    msms_df = msms_df.merge(
+        all_frags,
+        how='left',
+        left_on=['hmdb_id', 'polarity'],
+        right_index=True,
+    )
 
     return msms_df
 
@@ -64,6 +72,7 @@ class DSResults:
     mols_df: pd.DataFrame
     ann_mols_df: pd.DataFrame
     anns_df: pd.DataFrame
+    metric_scores: pd.DataFrame
 
     def get_coloc(self, f1, f2):
         if f1 == f2:
@@ -95,8 +104,8 @@ def fetch_ds_results(ds_id):
     res.ds_images = dict((imageset.formula, imageset[0]) for imageset in ann_images)
     return res
 
-
-# test_results = fetch_ds_results('2020-05-26_17h58m22s')
+if __name__ == '__main__':
+    test_results = fetch_ds_results('2020-05-26_17h58m22s')
 #%%
 
 def add_coloc_matrix(res: DSResults):
@@ -117,10 +126,11 @@ def add_coloc_matrix(res: DSResults):
         ds_coloc.rename_axis(index='source', columns='target', inplace=True)
         res.ds_coloc = ds_coloc
 
-# add_coloc_matrix(test_results)
+if __name__ == '__main__':
+    add_coloc_matrix(test_results)
 #%%
 
-def add_result_dfs(res: DSResults):
+def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
 
     # Get detected IDs from dataset
     # This is unreliable - METASPACE only reports the top 50 candidate mols per annotation. Using formula matching instead
@@ -134,20 +144,26 @@ def add_result_dfs(res: DSResults):
     # Exclude fragments of the wrong polarity
     df = get_msms_df()
     df = df[df.polarity == res.sm_ds.polarity.lower()].copy()
-    # df['is_detected'] = df.id.isin(detected_frag_ids)
-    df['is_detected'] = df.formula.isin(detected_formulas)
+    min_mz = lo_mz if lo_mz is not None else res.anns.mz.min() - 0.1
+    max_mz = hi_mz if hi_mz is not None else res.anns.mz.max() + 0.1
+    df['in_range'] = (df.mz >= min_mz) & (df.mz <= max_mz)
+    df['is_detected'] = df.formula.isin(detected_formulas) & df['in_range']
     df['parent_is_detected'] = df.hmdb_id.isin(df[df.is_parent & df.is_detected].hmdb_id)
-    df['in_range'] = (df.mz >= res.anns.mz.min() - 0.1) & (df.mz <= res.anns.mz.max() + 0.1)
-    href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db={res.db_id}&fdr=1&q='
+    href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db={res.db_id}&sort=mz&fdr=0.5&q='
     df['ann_href'] = href_base + df.formula
-
-    df = df.merge(pd.DataFrame({
+    v = pd.DataFrame({
         'parent_formula': df[df.is_parent].set_index('hmdb_id').formula,
-        'parent_n_detected': df.groupby('hmdb_id').is_detected.sum().astype(np.uint32),
-        'parent_n_frags': df.groupby('hmdb_id').in_range.sum().astype(np.uint32),
-        'parent_n_frags_unfiltered': df.groupby('hmdb_id').frag_idx.max(),
-    }), how='left', left_on='hmdb_id', right_index=True)
-    df['coloc_to_parent'] = [res.get_coloc(f1, f2) for f1, f2 in df[['formula', 'parent_formula']].itertuples(False, None)]
+        'parent_n_detected': df.groupby('hmdb_id').is_detected.sum().astype(np.int32),
+        'parent_n_frags': df.groupby('hmdb_id').in_range.sum().astype(np.int32),
+        'parent_n_frags_unfiltered': df.groupby('hmdb_id').frag_idx.max().astype(np.int32),
+        'mol_href': df.groupby('hmdb_id').formula.apply(lambda f: href_base + '|'.join(f)),
+    })
+    df = df.merge(v, how='left', left_on='hmdb_id', right_index=True)
+
+    df['coloc_to_parent'] = [
+        res.get_coloc(f1, f2) if df.is_detected.get(f1) and df.is_detected.get(f2) else 0
+        for f1, f2 in df[['formula', 'parent_formula']].itertuples(False, None)
+    ]
 
     df = df.merge(
         res.anns[['ionFormula','msm','offSample','intensity']]
@@ -172,29 +188,34 @@ def add_result_dfs(res: DSResults):
     res.mols_df = df[df.is_parent][[
         'hmdb_id', 'mz', 'is_detected', 'mol_name', 'formula', 'is_lipid',
         'msm', 'off_sample', 'intensity',
-        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered', 'ann_href', 'mol_href',
+        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered', 'mol_href', 'hmdb_href',
+        'all_frag_formulas',
     ]].set_index('hmdb_id')
 
     res.ann_mols_df = df[[
         'id', 'hmdb_id', 'mz', 'is_parent', 'is_detected', 'mol_name', 'formula', 'is_lipid',
         'msm', 'off_sample', 'intensity', 'parent_intensity',
-        'coloc_to_parent', 'parent_formula', 'frag_idx', 'ann_href', 'mol_href',
-        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered',
+        'coloc_to_parent', 'parent_formula', 'frag_idx', 'ann_href', 'mol_href', 'hmdb_href',
+        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered', 'db_n_isobar',
     ]].set_index('id')
 
     res.anns_df = df[df.is_detected][[
-        'formula', 'mz', 'msm', 'off_sample', 'intensity', 'ann_href',
+        'formula', 'mz', 'msm', 'off_sample', 'intensity', 'ann_href', 'db_n_isobar',
     ]].drop_duplicates().set_index('formula')
 
-# add_result_dfs(test_results)
+if __name__ == '__main__':
+    add_result_dfs(test_results)
 # %%
 
-def get_msms_results_for_ds(ds_id):
-    cache_path = Path(f'./mol_scoring/cache/ds_results/{ds_id}.pickle')
+def get_msms_results_for_ds(ds_id, mz_range=None):
+    mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
+    cache_path = Path(f'./mol_scoring/cache/ds_results/{ds_id}{mz_suffix}.pickle')
     if not cache_path.exists():
         res = fetch_ds_results(ds_id)
+        if mz_range is not None:
+            res.name = f'{res.name} ({mz_range[0]}-{mz_range[1]})'
         add_coloc_matrix(res)
-        add_result_dfs(res)
+        add_result_dfs(res, *mz_range)
         res.ds_images = None  # Save memory/space as downstream analysis doesn't need this
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         pickle.dump(res, cache_path.open('wb'))
