@@ -132,7 +132,7 @@ def plot_metrics_per_ds(prefix, ds_ids):
             fields,
             lambda ax, field: plot_metric_values(ax, ds, field, 'both', field),
             title=ds.name,
-            save_as=f'./mol_scoring/metric histograms/{prefix}_all_metrics_{ds.name}.png'
+            save_as=f'./scoring_results/metric histograms/{prefix}_all_metrics_{ds.name}.png'
         )
 
 # One plot per field
@@ -145,7 +145,7 @@ def plot_dss_per_metric(prefix, ds_ids):
                 dss,
                 lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
                 title=field + ' ' + title,
-                save_as=f'./mol_scoring/metric histograms/{prefix}_all_dss_{field}_{filter}.png'
+                save_as=f'./scoring_results/metric histograms/{prefix}_all_dss_{field}_{filter}.png'
             )
 
 # One plot per field with different m/z limits
@@ -157,7 +157,7 @@ for filter, title in [('analogue', 'analogues')]:
             dss,
             lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
             title=field + ' ' + title,
-            save_as=f'./mol_scoring/metric histograms/mz_ranges_all_dss_{field}_{filter}.png'
+            save_as=f'./scoring_results/metric histograms/mz_ranges_all_dss_{field}_{filter}.png'
         )
 
 #%% Histogram of # of frags detected vs expected
@@ -241,7 +241,7 @@ for relative in [False, True]:
             [('positive', False), ('positive', True), ('negative', False), ('negative', True)],
             lambda ax, args: make_n_frags_plot(ax, *args, relative, max_mz),
             title=f'# of fragments in m/z range' + (f' for mols <= {max_mz} Da' if max_mz else ''),
-            save_as=f'./mol_scoring/n_frags_in_mz_range/n_frags_in_mz_range{"_max" + str(max_mz) if max_mz else ""}{"_pct" if relative else ""}.png',
+            save_as=f'./scoring_results/n_frags_in_mz_range/n_frags_in_mz_range{"_max" + str(max_mz) if max_mz else ""}{"_pct" if relative else ""}.png',
             layout_args={'h_pad': 4}
         )
 

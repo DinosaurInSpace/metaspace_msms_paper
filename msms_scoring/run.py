@@ -27,5 +27,5 @@ for ds_id in dataset_ids:
 
 #%%
 
-export_mean_average_precision(dataset_ids, 'mol_scoring/metric scores.xlsx')
+export_mean_average_precision(dataset_ids, 'scoring_results/metric scores.xlsx')
 #%%

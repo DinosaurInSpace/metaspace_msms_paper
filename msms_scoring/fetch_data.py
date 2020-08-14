@@ -44,8 +44,10 @@ def get_msms_df():
     ]
     msms_df = msms_df[~msms_df.hmdb_id.isin(ids_to_drop)]
     # Add is_lipid column
-    hmdb_mols = pickle.load(open('to_metaspace/hmdb_mols.pickle', 'rb'))
-    lipid_ids = [mol['id'] for mol in hmdb_mols if mol['super_class'] == 'Lipids and lipid-like molecules' or mol['mol_name'].startswith('PC(')]
+    # hmdb_lipid_ids.txt is derived from the HMDB 4.0 export, and includes the IDs of all molecules
+    # with the super-class "Lipids and lipid-like molecules", or starting with "PC(", which are
+    # also present in core_metabolome_v3
+    lipid_ids = set(hmdb_id for hmdb_id in open('hmdb_lipid_ids.txt').read().split('\n') if hmdb_id)
     msms_df['is_lipid'] = msms_df.hmdb_id.isin(lipid_ids)
     # Add sorted list of fragments for later deduping
     all_frags = msms_df.groupby(['hmdb_id', 'polarity']).formula.apply(lambda fs: tuple(sorted(fs))).rename('all_frag_formulas')
@@ -208,7 +210,7 @@ if __name__ == '__main__':
 
 def get_msms_results_for_ds(ds_id, mz_range=None):
     mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
-    cache_path = Path(f'./mol_scoring/cache/ds_results/{ds_id}{mz_suffix}.pickle')
+    cache_path = Path(f'./scoring_results/cache/ds_results/{ds_id}{mz_suffix}.pickle')
     if not cache_path.exists():
         res = fetch_ds_results(ds_id)
         if mz_range is not None:

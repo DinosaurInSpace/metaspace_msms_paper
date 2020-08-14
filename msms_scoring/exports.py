@@ -175,7 +175,7 @@ def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=T
 def export_fragments(ds_id, prefix='raw data'):
     res = get_ds_results(ds_id)
     export_data = get_raw_export_data(res)
-    export(export_data, f'./mol_scoring/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
+    export(export_data, f'./scoring_results/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
 
 # %%
 def plot_pseudo_ms_spectra(ds_ids):
@@ -190,8 +190,8 @@ def plot_pseudo_ms_spectra(ds_ids):
                 ds.ds_id,
                 ds.db_id,
                 ds.ds_id,
-                f'./mol_scoring/pseudo-msms plots/data/',
-                f'./mol_scoring/pseudo-msms plots/{ds.name}_{y_axis}/',
+                f'./scoring_results/pseudo-msms plots/data/',
+                f'./scoring_results/pseudo-msms plots/{ds.name}_{y_axis}/',
                 ds.sm_ds.polarity.lower(),
                 y_axis,
                 spectra_df
@@ -296,5 +296,5 @@ def export_mean_average_precision_with_range_filter(ds_ids):
         'Avg precision': avg_prec,
         'Mean avg prec stats': mAP_stats,
         # 'Raw data': metric_scores.set_index(['params','ds','metric']),
-    }, 'mol_scoring/metric_scores_clipped.xlsx', grouped_sheets=True)
+    }, 'scoring_results/metric_scores_clipped.xlsx', grouped_sheets=True)
 # %%
