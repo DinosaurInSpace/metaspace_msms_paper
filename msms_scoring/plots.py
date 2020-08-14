@@ -7,7 +7,6 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from msms_scoring.datasets import dataset_ids, whole_body_ds_ids
 from msms_scoring.fetch_data import get_msms_df
 from msms_scoring.metrics import get_ds_results
 
@@ -122,35 +121,32 @@ def plot_metric_values(ax, ds, field, filter, title):
     ax.hist(data, bins=bins, range=range, stacked=True, label=label, color=color)
     ax.legend(loc='upper right')
 
-ds_sets = [
-    ('spotting', dataset_ids),
-    # ('whole_body', whole_body_ds_ids),
-]
 # One plot per ds
-# for ds_set, ds_ids in ds_sets:
-#     dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-#     # 'global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80',
-#     fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']
-#     for ds in dss:
-#         fig = plot_grid(
-#             fields,
-#             lambda ax, field: plot_metric_values(ax, ds, field, 'both', field),
-#             title=ds.name,
-#             save_as=f'./mol_scoring/metric histograms/{ds_set}_all_metrics_{ds.name}.png'
-#         )
+
+def plot_metrics_per_ds(prefix, ds_ids):
+    dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+    # 'global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80',
+    fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']
+    for ds in dss:
+        fig = plot_grid(
+            fields,
+            lambda ax, field: plot_metric_values(ax, ds, field, 'both', field),
+            title=ds.name,
+            save_as=f'./mol_scoring/metric histograms/{prefix}_all_metrics_{ds.name}.png'
+        )
 
 # One plot per field
-# for ds_set, ds_ids in ds_sets:
-#     for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
-#         dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-#         # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
-#         for field in ['coloc_int_fdr']:
-#             fig = plot_grid(
-#                 dss,
-#                 lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
-#                 title=field + ' ' + title,
-#                 save_as=f'./mol_scoring/metric histograms/{ds_set}_all_dss_{field}_{filter}.png'
-#             )
+def plot_dss_per_metric(prefix, ds_ids):
+    for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
+        dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+        # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
+        for field in ['coloc_int_fdr']:
+            fig = plot_grid(
+                dss,
+                lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
+                title=field + ' ' + title,
+                save_as=f'./mol_scoring/metric histograms/{prefix}_all_dss_{field}_{filter}.png'
+            )
 
 # One plot per field with different m/z limits
 ds_ids = ['2020-06-19_16h39m10s','2020-06-19_16h39m12s']
@@ -198,11 +194,6 @@ def plot_n_frags_hist2d(ds, save_as=None):
         fig.savefig(str(out))
         print(f'Saved {save_as}')
     return fig
-
-for ds_set, ds_ids in [('spotting', dataset_ids), ('whole_body', whole_body_ds_ids)]:
-    dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-    for ds in dss:
-        plot_n_frags_hist2d(ds, f'./mol_scoring/metric histograms/{ds_set}_n_frags_{ds.name}.png')
 
 # plot_n_frags_hist2d(get_ds_results('2020-06-19_16h39m10s')).show()
 #%% Plot #frags for msms_df

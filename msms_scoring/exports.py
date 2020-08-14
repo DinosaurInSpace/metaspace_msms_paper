@@ -7,8 +7,7 @@ import numpy as np
 import pandas as pd
 
 from metaspace_msms_mirror_spectra import mirror_main
-from msms_scoring.fetch_data import DSResults, get_msms_df
-from msms_scoring.datasets import dataset_ids, whole_body_ds_ids
+from msms_scoring.fetch_data import DSResults
 from msms_scoring.metrics import get_ds_results, add_metric_scores
 
 
@@ -179,11 +178,11 @@ def export_fragments(ds_id, prefix='raw data'):
     export(export_data, f'./mol_scoring/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
 
 # %%
-def plot_pseudo_ms_spectra():
+def plot_pseudo_ms_spectra(ds_ids):
     spectra_df = pd.read_pickle('./input/cm3_reference_spectra_df.pickle')
     # 'binary', 'fdr',
     for y_axis in ['msm', 'cos', 'intensity']:
-        for ds_id in dataset_ids:
+        for ds_id in ds_ids:
             print(f'{ds_id} {y_axis}')
             ds = get_ds_results(ds_id)
 

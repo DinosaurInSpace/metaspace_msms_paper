@@ -1,81 +1,39 @@
 import pandas as pd
 
+# List of METASPACE IDs of datasets that have been processed with a fragmentation database
+dataset_ids = [
+    '2020-08-03_13h23m33s',
+    '2020-08-03_19h56m47s',
+    '2020-08-04_14h06m33s',
+    '2020-08-04_14h06m47s',
+    '2020-08-11_15h28m01s',
+    '2020-08-11_15h28m27s',
+    '2020-08-11_15h28m38s',
+    '2020-08-11_16h49m43s',
+]
 
-whole_body_ds_ids = [
-    '2020-05-26_17h57m50s',
-    '2020-05-26_17h57m53s',
-    '2020-05-26_17h57m57s',
-    '2020-05-26_17h58m00s',
-    '2020-05-26_17h58m04s',
-    '2020-05-26_17h58m08s',
-    '2020-05-26_17h58m11s',
-    '2020-05-26_17h58m15s',
-    '2020-05-26_17h58m19s',
-    '2020-05-26_17h58m22s',
-]
-high_quality_ds_ids = [
-    '2020-05-18_17h08m38s',
-    '2020-05-18_17h08m40s',
-    '2020-05-18_17h08m42s',
-    '2020-05-18_17h08m44s',
-    '2020-05-18_17h08m47s',
-    '2020-05-18_17h08m49s',
-    '2020-05-18_17h08m51s',
-    '2020-05-18_17h08m54s',
-    '2020-05-18_17h08m56s',
-    '2020-05-18_17h08m58s',
-    '2020-05-18_17h09m01s',
-    '2020-05-18_17h09m03s',
-    '2020-05-18_17h09m05s',
-    '2020-05-18_17h09m07s',
-    '2020-05-18_17h09m10s',
-]
-spotting_only_spotted_mols_ds_ids = [
-    '2020-05-14_16h32m01s',
-    '2020-05-14_16h32m04s',
-    '2020-05-14_16h32m07s',
-    '2020-05-14_16h32m10s',
-    '2020-05-14_16h32m14s',
-    '2020-05-14_16h32m16s',
-    '2020-05-14_16h32m19s',
-    '2020-05-14_16h32m22s',
-    '2020-05-14_16h32m26s',
-]
-spotting_ds_ids = [
-    # '2020-06-19_16h38m19s',  # Lipids don't give good results
-    # '2020-06-19_16h39m01s',
-    # '2020-06-19_16h39m02s',  # Not in the list VS sent of suggested DSs
-    '2020-06-19_16h39m04s',
-    '2020-06-19_16h39m06s',
-    '2020-06-19_16h39m08s',
-    '2020-06-19_16h39m10s',
-    '2020-06-19_16h39m12s',
-    '2020-06-19_16h39m14s',
-]
-spotting_short_names = {
-    # '2020-06-19_16h38m19s': 'Lipid Array DAN+',
-    # '2020-06-19_16h39m01s': 'Lipid Array DAN-',
-    # '2020-06-19_16h39m02s': 'Jan Spotted Array B DHB+',
-    '2020-06-19_16h39m04s': 'Jan SlideD DHB+',
-    '2020-06-19_16h39m06s': 'Jan SlideE DAN-',
-    '2020-06-19_16h39m08s': 'OurCon DHB+ (120-720)',
-    '2020-06-19_16h39m10s': 'OurCon DHB+ (60-360)',
-    '2020-06-19_16h39m12s': 'OurCon DAN- (50-300)',
-    '2020-06-19_16h39m14s': 'OurCon DAN- (140-800)'
+# Optional aliases for datasets that have long names
+dataset_aliases = {
+    '2020-08-03_13h23m33s': 'MSMS DHB+ MS1 (100-800)',
+    '2020-08-03_19h56m47s': 'MSMS DHB+ AIF (100-800)',
+    '2020-08-04_14h06m33s': 'MSMS DHB- MS1 (100-800)',
+    '2020-08-04_14h06m47s': 'MSMS DHB- AIF (100-800)',
+    '2020-08-11_15h28m01s': 'MSMS DAN- MS1 (100-800)',
+    '2020-08-11_15h28m27s': 'MSMS DAN- AIF (100-800)',
+    '2020-08-11_15h28m38s': 'MSMS DAN+ MS1 (100-800)',
+    '2020-08-11_16h49m43s': 'MSMS DAN+ AIF (100-800)',
 }
 
-# lipid_mol_ids = set(pd.read_csv('./spotting/lipid_spotted_mols.csv')[lambda df: df.cm_name.notna()].id)
-jan_mol_ids = set(pd.read_csv('./spotting/jan_spotted_mols.csv')[lambda df: df.cm_name.notna()].hmdb_id)
-ourcon_mol_ids = set(pd.read_csv('./spotting/ourcon_spotted_mols.csv')[lambda df: df.cm_name.notna()].hmdb_id)
+msms_mol_ids = set(pd.read_csv('./spotting/msms_spotted_mols.csv')[lambda df: df.cm_name.notna()].hmdb_id)
 
-spotting_mol_lists = {
-    # '2020-06-19_16h38m19s': lipid_mol_ids,
-    # '2020-06-19_16h39m01s': lipid_mol_ids,
-    # '2020-06-19_16h39m02s': jan_mol_ids,
-    '2020-06-19_16h39m04s': jan_mol_ids,
-    '2020-06-19_16h39m06s': jan_mol_ids,
-    '2020-06-19_16h39m08s': ourcon_mol_ids,
-    '2020-06-19_16h39m10s': ourcon_mol_ids,
-    '2020-06-19_16h39m12s': ourcon_mol_ids,
-    '2020-06-19_16h39m14s': ourcon_mol_ids,
+# Optional lists mapping dataset IDs to sets of HMDB IDs for molecules that are expected
+dataset_mol_lists = {
+    '2020-08-03_13h23m33s': msms_mol_ids,
+    '2020-08-03_19h56m47s': msms_mol_ids,
+    '2020-08-04_14h06m33s': msms_mol_ids,
+    '2020-08-04_14h06m47s': msms_mol_ids,
+    '2020-08-11_15h28m01s': msms_mol_ids,
+    '2020-08-11_15h28m27s': msms_mol_ids,
+    '2020-08-11_15h28m38s': msms_mol_ids,
+    '2020-08-11_16h49m43s': msms_mol_ids,
 }
