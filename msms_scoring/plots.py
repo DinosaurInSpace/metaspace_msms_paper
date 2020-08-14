@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from msms_scoring.datasets import spotting_ds_ids, whole_body_ds_ids
+from msms_scoring.datasets import dataset_ids, whole_body_ds_ids
 from msms_scoring.fetch_data import get_msms_df
 from msms_scoring.metrics import get_ds_results
 
@@ -123,7 +123,7 @@ def plot_metric_values(ax, ds, field, filter, title):
     ax.legend(loc='upper right')
 
 ds_sets = [
-    ('spotting', spotting_ds_ids),
+    ('spotting', dataset_ids),
     # ('whole_body', whole_body_ds_ids),
 ]
 # One plot per ds
@@ -199,7 +199,7 @@ def plot_n_frags_hist2d(ds, save_as=None):
         print(f'Saved {save_as}')
     return fig
 
-for ds_set, ds_ids in [('spotting', spotting_ds_ids), ('whole_body', whole_body_ds_ids)]:
+for ds_set, ds_ids in [('spotting', dataset_ids), ('whole_body', whole_body_ds_ids)]:
     dss = [get_ds_results(ds_id) for ds_id in ds_ids]
     for ds in dss:
         plot_n_frags_hist2d(ds, f'./mol_scoring/metric histograms/{ds_set}_n_frags_{ds.name}.png')

@@ -12,7 +12,7 @@ from scipy.ndimage import median_filter
 from sklearn.metrics import pairwise_kernels
 
 #%%
-from msms_scoring.datasets import spotting_short_names
+from msms_scoring.datasets import dataset_aliases
 
 sm = SMInstance()
 #%%
@@ -87,8 +87,8 @@ def fetch_ds_results(ds_id):
     res.ds_id = ds_id
     res.sm_ds = sm.dataset(id=ds_id)
     res.db_id = [db for db in res.sm_ds.databases if re.match(r'^\d|^ls_cm3_msms_all_', db)][0]
-    if ds_id in spotting_short_names:
-        res.name = spotting_short_names[res.ds_id]
+    if ds_id in dataset_aliases:
+        res.name = dataset_aliases[res.ds_id]
     else:
         res.name = re.sub('[\W ]+', '_', res.sm_ds.name)
         res.name = re.sub('_cloned_from.*', '', res.name)
@@ -214,7 +214,7 @@ def get_msms_results_for_ds(ds_id, mz_range=None):
         if mz_range is not None:
             res.name = f'{res.name} ({mz_range[0]}-{mz_range[1]})'
         add_coloc_matrix(res)
-        add_result_dfs(res, *mz_range)
+        add_result_dfs(res, *(mz_range or []))
         if mz_range:
             res.ds_coloc = res.ds_coloc.reindex(index=res.anns_df.index, columns=res.anns_df.index)
         res.ds_images = None  # Save memory/space as downstream analysis doesn't need this

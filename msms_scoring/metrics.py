@@ -8,7 +8,7 @@ from scipy.stats import fisher_exact
 from sklearn.feature_extraction.text import TfidfTransformer
 from enrichmentanalysis.enrich_run import EnrichmentRun
 
-from msms_scoring.datasets import spotting_mol_lists
+from msms_scoring.datasets import dataset_mol_lists
 from msms_scoring.fetch_data import DSResults, get_msms_results_for_ds
 
 
@@ -21,7 +21,7 @@ pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 1000)
 #%%
 def add_expected_mols(res: DSResults):
-    expected_mol_ids = spotting_mol_lists.get(res.ds_id, set())
+    expected_mol_ids = dataset_mol_lists.get(res.ds_id, set())
     res.mols_df['is_expected'] = res.mols_df.index.isin(expected_mol_ids)
     res.ann_mols_df['is_expected'] = res.ann_mols_df.hmdb_id.isin(expected_mol_ids)
 
