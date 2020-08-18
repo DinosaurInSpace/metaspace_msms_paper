@@ -1,0 +1,19 @@
+
+{
+    "help:general": "Keep in mind that json is a different format and much less forgiving than Python. Don't add a comma after the last item in a list, and keep true/false lower-case",
+    "help:positions": "Pixel coordinates of the centers of calibration spots [y, x]",
+    "positions": [[9, 6], [8, 76], [198, 52]],
+    "help:grid_coords": "Grid coordinates of the calibration spots. Same spot order as positions. [row, col]",
+    "grid_coords": [[0, 0.5], [0, 7.5], [19, 5]],
+    "help:n_rows_n_cols": "Size of the grid",
+    "n_rows": 20,
+    "n_cols": 9,
+    "help:spot_h_spot_w": "Height / width of each spot",
+    "spot_h": 7,
+    "spot_w": 7,
+    "help:image_h_image_w": "Image dimensions (should not be adjusted)",
+    "image_h": 205,
+    "image_w": 100,
+    "help:alternating_rows": "'true' if every odd-numbered row is shifted, 'false' for a rectangular grid",
+    "alternating_rows": true
+}
