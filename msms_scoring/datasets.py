@@ -33,6 +33,16 @@ dataset_aliases2 = {
     '2020-08-11_15h28m38s': 'DAN Pos MS1',
     '2020-08-11_16h49m43s': 'DAN Pos AIF',
 }
+dataset_polarity = {
+    '2020-08-03_13h23m33s': 'positive',
+    '2020-08-03_19h56m47s': 'positive',
+    '2020-08-04_14h06m33s': 'negative',
+    '2020-08-04_14h06m47s': 'negative',
+    '2020-08-11_15h28m01s': 'negative',
+    '2020-08-11_15h28m27s': 'negative',
+    '2020-08-11_15h28m38s': 'positive',
+    '2020-08-11_16h49m43s': 'positive',
+}
 
 msms_mol_ids = set(pd.read_csv('./spotting/msms_spotted_mols.csv')[lambda df: df.cm_name.notna()].hmdb_id)
 

@@ -24,7 +24,6 @@ def get_ds_spots(ds_id):
     parser = ImzMLParser(f'raw_datasets/{ds_id}.imzML')
     grid_mask = np.load(f'spotting/grids/{ds_id}.npy')
     mask_names = json.load(open(f'spotting/grids/{ds_id}_mask_names.json'))
-    Path(f'sum_spectra/{ds_id}/').mkdir(parents=True, exist_ok=True)
 
     # Make a mapping of coordinate -> spectrum index
     coords = np.array(parser.coordinates)[:, :2]
@@ -39,25 +38,24 @@ def get_ds_spots(ds_id):
         if mask_name != 'background':
             spectra_ys, spectra_xs = np.nonzero(grid_mask == i)
             spectra = [parser.getspectrum(idx) for idx in coord_to_idx[spectra_xs, spectra_ys]]
-            mzs, ints = merge_spectra(spectra)
-            spots[mask_name] = mzs, ints, len(spectra)
+            norm_spectra = [(mzs, ints * 1e6 / np.sum(ints)) for mzs, ints in spectra]
+            mzs, ints = merge_spectra(norm_spectra)
+            spots[mask_name] = mzs, ints, len(norm_spectra)
     return spots
 
 
-def get_background_spot_mapping():
+def get_background_spot_mapping(grid):
     """
     For each spot, find the set of other spots that should have no on-sample chemical overlap,
     so that they can be used to build a baseline of background peaks.
     """
-    grid = pd.read_csv('spotting/msms_grid_mapping.csv', index_col=0)
-    grid_halves = [grid[grid.row < 10], grid[grid.row >= 10]]
+
     bg_map = {}
-    for mol_set in grid_halves:
-        content_map = {}
-        for cell, row in mol_set.iterrows():
-            content_map[cell] = set([row.hmdb_id1, row.hmdb_id2, row.hmdb_id3]).difference([np.nan])
-        for cell, contents in content_map.items():
-            bg_map[cell] = [other for other, other_contents in content_map.items() if contents.isdisjoint(other_contents)]
+    content_map = {}
+    for spot, row in grid.iterrows():
+        content_map[spot] = set([row.hmdb_id1, row.hmdb_id2, row.hmdb_id3]).difference([np.nan])
+    for spot, contents in content_map.items():
+        bg_map[spot] = [other for other, other_contents in content_map.items() if contents.isdisjoint(other_contents)]
 
     return bg_map
 
@@ -118,27 +116,41 @@ def subtract_bg(mzs, ints, bg_mzs, bg_ints, min_hits, min_int_increase=1.5, max_
     return fg_mzs, fg_ints
 
 
-def batch_run(ds_id):
+def batch_run(ds_id, remove_background_signal=False):
+    """remove_background_signal needs further development if we decide to use it"""
     ds_name = dataset_aliases2.get(ds_id, ds_id)
     spots = get_ds_spots(ds_id)
-    bg_map = get_background_spot_mapping()
+    grid = pd.read_csv('spotting/msms_grid_mapping.csv', index_col=0)
+    if remove_background_signal:
+        bg_map = {
+            # Split into upper and lower grids, as the replicates seem to sometimes have intensity differences
+            **get_background_spot_mapping(grid[grid.row < 10]),
+            **get_background_spot_mapping(grid[grid.row >= 10]),
+        }
+    else:
+        bg_map = {}
     spot_groups = {
         spot: group_peaks(mzs, ints, spot_size // 10) for spot, (mzs, ints, spot_size) in spots.items()
     }
     spot_peaks = {
         spot: merge_groups(spot_groups[spot], spot_size) for spot, (mzs, ints, spot_size) in spots.items()
     }
+    spot_names = {
+        spot: '_'.join(m for m in [r.name1, r.name2, r.name3] if pd.notna(m))
+        for spot, r in grid.iterrows()
+    }
     for spot in spots.keys():
+        spot_name = spot_names.get(spot, 'Empty')
         peak_mzs, peak_ints = spot_peaks[spot]
         sum_spectrum = np.stack([peak_mzs, peak_ints]).T
-        out_path = Path(f'sum_spectra/{ds_name}/raw/{spot}.txt')
+        out_path = Path(f'sum_spectra/{ds_id}/raw/{spot}.txt')
         out_path.parent.mkdir(parents=True, exist_ok=True)
         np.savetxt(out_path, sum_spectrum, fmt='%.5f')
 
-        if spot in bg_map:
+        if remove_background_signal and spot in bg_map:
             bg_mzs, bg_ints, bg_size = get_spot_bg(bg_map, spot_peaks, spot)
             fg_mzs, fg_ints = subtract_bg(peak_mzs, peak_ints, bg_mzs, bg_ints, bg_size // 4)
             sum_fg_spectrum = np.stack([fg_mzs, fg_ints]).T
-            out_path = Path(f'sum_spectra/{ds_name}/cleaned/{spot}.txt')
+            out_path = Path(f'sum_spectra/{ds_id}/cleaned/{spot}.txt')
             out_path.parent.mkdir(parents=True, exist_ok=True)
             np.savetxt(out_path, sum_fg_spectrum, fmt='%.5f')

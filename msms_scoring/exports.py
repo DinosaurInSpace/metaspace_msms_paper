@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from metaspace_msms_mirror_spectra import mirror_main
-from msms_scoring.fetch_data import DSResults
+from msms_scoring.fetch_data import DSResults, get_msms_df
 from msms_scoring.metrics import get_ds_results, add_metric_scores
 
 
@@ -100,28 +100,27 @@ def get_raw_export_data(res: DSResults):
 
 
 # %% Export
+SCALE_ONE_TO_ZERO = {
+    'type': '3_color_scale',
+    'min_type': 'num', 'min_value': 0.0, 'min_color': '#63BE7B',
+    'mid_type': 'num', 'mid_value': 0.5, 'mid_color': '#FFEB84',
+    'max_type': 'num', 'max_value': 1.0, 'max_color': '#F8696B',
+}
+SCALE_DEFAULT = {
+    'type': '3_color_scale',
+    'min_color': '#FFFFFF',
+    'mid_color': '#FFEB84',
+    'max_color': '#63BE7B',
+}
+COLUMN_SCALES = {
+    'global_enrich_p': SCALE_ONE_TO_ZERO,
+    'global_enrich_uncorr': SCALE_ONE_TO_ZERO,
+    'group_enrich_p': SCALE_ONE_TO_ZERO,
+    'group_enrich_uncorr': SCALE_ONE_TO_ZERO,
+    'feature_n': None,
+    'parent_num_features': None,
+}
 def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=True):
-    SCALE_ONE_TO_ZERO = {
-        'type': '3_color_scale',
-        'min_type': 'num', 'min_value': 0.0, 'min_color': '#63BE7B',
-        'mid_type': 'num', 'mid_value': 0.5, 'mid_color': '#FFEB84',
-        'max_type': 'num', 'max_value': 1.0, 'max_color': '#F8696B',
-    }
-    SCALE_DEFAULT = {
-        'type': '3_color_scale',
-        'min_color': '#FFFFFF',
-        'mid_color': '#FFEB84',
-        'max_color': '#63BE7B',
-    }
-    column_formats = {
-        'global_enrich_p': SCALE_ONE_TO_ZERO,
-        'global_enrich_uncorr': SCALE_ONE_TO_ZERO,
-        'group_enrich_p': SCALE_ONE_TO_ZERO,
-        'group_enrich_uncorr': SCALE_ONE_TO_ZERO,
-        'feature_n': None,
-        'parent_num_features': None,
-    }
-
     drop_cols = [
         'inv_tfidf', 'tfidf', 'global_enrich_p', 'global_enrich_uncorr', 'group_enrich_p', 'group_enrich_uncorr',
         'p_value_20','p_value_50','p_value_80',
@@ -130,7 +129,10 @@ def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=T
         'all_frag_formulas',
     ]
 
-    def to_excel_colorize(writer, df, index=True, header=True, autofilter=True, **kwargs):
+    def to_excel_colorize(writer, df, sheet_options, index=True, header=True, autofilter=True, **kwargs):
+        column_scales = {**COLUMN_SCALES, **sheet_options.get('column_scales', {})}
+        column_scale_default = sheet_options.get('column_scale_default', SCALE_DEFAULT)
+
         if df is not None and not df.empty:
             df = df.drop(columns=drop_cols, errors='ignore')
 
@@ -143,7 +145,7 @@ def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=T
             columns = [(name, df.dtypes[name], df[name]) for name in df.columns]
             for col_i, (name, dtype, values) in enumerate([*indexes, *columns]):
                 if np.issubdtype(dtype.type, np.number):
-                    options = column_formats.get(name, SCALE_DEFAULT)
+                    options = column_scales.get(name, column_scale_default)
                     # options = {'type': '3_color_scale'}
                     if options:
                         worksheet.conditional_format(header_rows, col_i, worksheet.dim_rowmax, col_i, options)
@@ -160,12 +162,16 @@ def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=T
     Path(out_file).parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(out_file, engine='xlsxwriter') as writer:
         for sheet_name, data in export_data.items():
+            if isinstance(data, tuple):
+                data, sheet_options = data
+            else:
+                sheet_options = {}
             if data is not None:
                 if grouped_sheets is not True:
-                    to_excel_colorize(writer, data, sheet_name=sheet_name)
+                    to_excel_colorize(writer, data, sheet_options, sheet_name=sheet_name)
                 if data.index.nlevels > 1 or grouped_sheets is not False:
                     sn = sheet_name if grouped_sheets is True else sheet_name + ' (grouped)'
-                    to_excel_colorize(writer, data, autofilter=False, sheet_name=sn)
+                    to_excel_colorize(writer, data, sheet_options, autofilter=False, sheet_name=sn)
 
     print(f'Saved {out_file}')
 
@@ -297,4 +303,42 @@ def export_mean_average_precision_with_range_filter(ds_ids):
         'Mean avg prec stats': mAP_stats,
         # 'Raw data': metric_scores.set_index(['params','ds','metric']),
     }, 'scoring_results/metric_scores_clipped.xlsx', grouped_sheets=True)
+# %%
+
+def export_molecule_well_behavedness(ds_ids, hmdb_ids):
+    msms_df = get_msms_df()
+    dss = [get_ds_results(ds_id) for ds_id in ds_ids]
+    ds_names = [ds.name for ds in dss]
+    mol_names = [msms_df[msms_df.hmdb_id == hmdb_id].mol_name.iloc[0] for hmdb_id in hmdb_ids]
+    coloc_int_fdr = pd.DataFrame(index=mol_names, columns=ds_names, dtype='f')
+    sum_coloc = pd.DataFrame(index=mol_names, columns=ds_names, dtype='f')
+    num_frags = pd.DataFrame(index=mol_names, columns=ds_names, dtype='f')
+    intensity = pd.DataFrame(index=mol_names, columns=ds_names, dtype='f')
+    filter_reason = pd.DataFrame(index=mol_names, columns=ds_names, dtype='O')
+    good = pd.DataFrame(index=mol_names, columns=ds_names, dtype='f')
+
+    for ds, ds_name in zip(dss, ds_names):
+        for hmdb_id, mol_name in zip(hmdb_ids, mol_names):
+            if hmdb_id in ds.mols_df.index:
+                row = ds.mols_df.loc[hmdb_id]
+                coloc_int_fdr.loc[mol_name, ds_name] = row.coloc_int_fdr
+                sum_coloc.loc[mol_name, ds_name] = row.coloc
+                num_frags.loc[mol_name, ds_name] = row.parent_n_detected
+                intensity.loc[mol_name, ds_name] = row.intensity
+                filter_reason.loc[mol_name, ds_name] = row.filter_reason
+                if row.coloc_int_fdr < 0.1 and not row.filter_reason:
+                    good.loc[mol_name, ds_name] = 1
+
+    good['at_least_2'] = good.apply(lambda r: np.nansum(r) > 1, axis=1)
+
+    export({
+        'coloc_int_fdr': (coloc_int_fdr, {'column_scale_default': SCALE_ONE_TO_ZERO}),
+        'filter_reason': filter_reason,
+        'sum_coloc': sum_coloc,
+        'num_frags': num_frags,
+        'intensity': intensity,
+        'good': good,
+    }, 'scoring_results/well_behavedness.xlsx', grouped_sheets=False)
+
+
 # %%
