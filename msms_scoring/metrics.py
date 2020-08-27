@@ -230,10 +230,6 @@ def add_fdr(res: DSResults):
         frags = np.random.choice(all_formulas, n_frags-1, replace=False) if n_frags > 1 else []
         return alg_func(parent, frags)
 
-    def get_old_decoy(alg_func, n_frags):
-        parent, *frags = np.random.choice(all_formulas, n_frags, replace=False)
-        return alg_func(parent, frags)
-
     all_formulas = np.array(res.ann_mols_df.formula.unique())
     n_decoys = 1000
     results = {}
@@ -244,16 +240,13 @@ def add_fdr(res: DSResults):
         old_results = []
         for n_frags, grp in res.ann_mols_df.groupby('parent_n_frags'):
             decoy_scores = [get_decoy(alg_func, n_frags) for n in range(n_decoys)]
-            old_decoy_scores = [get_old_decoy(alg_func, n_frags) for n in range(n_decoys)]
             target_scores = grp.sort_values('is_parent', ascending=False).groupby('hmdb_id').formula.apply(lambda fs: alg_func(fs.values[0], fs.values[1:]))
 
             alg_scores.append(target_scores)
             alg_results.append(get_fdr(decoy_scores, target_scores))
-            old_results.append(get_fdr(old_decoy_scores, target_scores))
             # print(f'{alg} {n_frags}: {len(grp)}, {np.mean(target_scores)}, {np.mean(decoy_scores)}')
         results[alg] = pd.concat(alg_scores)
         results[f'{alg}_fdr'] = pd.concat(alg_results)
-        results[f'old_{alg}_fdr'] = pd.concat(old_results)
 
     fdrs_df = pd.DataFrame(results)
     res.ann_mols_df.drop(columns=fdrs_df.columns, errors='ignore', inplace=True)
@@ -309,24 +302,12 @@ def add_metric_scores(res: DSResults, params: str = 'unfiltered', min_mz=None):
     res.metric_scores = pd.DataFrame(scores)
     res.metric_counts = {'n_expected': df.is_expected.sum(), 'n_unexpected': (~df.is_expected).sum()}
 
-if __name__ == '__main__':
-    add_metric_scores(test_results)
-
 #%%
 def add_filter_reason(res):
     filter_reason = res.mols_df.apply(lambda s: 'off-sample parent' if s.off_sample else 'no coloc' if s.coloc == 0 else 'structural analogue' if s.is_redundant else '', axis=1)
     res.mols_df['filter_reason'] = filter_reason
     res.ann_mols_df = res.ann_mols_df.merge(res.mols_df.filter_reason, how='left', left_on='hmdb_id', right_index=True)
 
-if __name__ == '__main__':
-    add_filter_reason(test_results)
-# %%
-def clip_mz_range(res: DSResults, lo_mz, hi_mz):
-    pass
-if __name__ == '__main__':
-    test_results = get_msms_results_for_ds('2020-06-19_16h39m10s')
-    clip_mz_range(test_results, 80, 1000)
-    print(test_results.anns_df.mz.min(), test_results.anns_df.mz.max())
 # %%
 
 @lru_cache(maxsize=None)

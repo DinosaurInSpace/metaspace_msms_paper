@@ -148,7 +148,7 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
     min_mz = max(res.anns.mz.min() - 0.1, lo_mz or 0)
     max_mz = min(res.anns.mz.max() + 0.1, hi_mz or 2000)
     df['in_range'] = (df.mz >= min_mz) & (df.mz <= max_mz)
-    df['is_detected'] = df.formula.isin(res.anns.ionFormula) & df['in_range']
+    df['is_detected'] = df.formula.isin(res.anns.ionFormula) & df.in_range
     df['parent_is_detected'] = df.hmdb_id.isin(df[df.is_parent & df.is_detected].hmdb_id)
     href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db={res.db_id}&sort=mz&fdr=0.5&q='
     df['ann_href'] = href_base + df.formula
@@ -162,8 +162,11 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
     df = df.merge(v, how='left', left_on='hmdb_id', right_index=True)
 
     df['coloc_to_parent'] = [
-        res.get_coloc(f1, f2) if df.is_detected.get(f1) and df.is_detected.get(f2) else 0
-        for f1, f2 in df[['formula', 'parent_formula']].itertuples(False, None)
+        # Explicitly check is_detected here so that the mz_range filter is applied
+        res.get_coloc(f1, f2) if d1 and d2 else 0
+        for f1, f2, d1, d2 in df[[
+            'formula', 'parent_formula', 'is_detected', 'parent_is_detected'
+        ]].itertuples(False, None)
     ]
 
     df = df.merge(
@@ -208,10 +211,10 @@ if __name__ == '__main__':
     add_result_dfs(test_results)
 # %%
 
-def get_msms_results_for_ds(ds_id, mz_range=None):
+def get_msms_results_for_ds(ds_id, mz_range=None, use_cache=True):
     mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
     cache_path = Path(f'./scoring_results/cache/ds_results/{ds_id}{mz_suffix}.pickle')
-    if not cache_path.exists():
+    if not use_cache or not cache_path.exists():
         res = fetch_ds_results(ds_id)
         if mz_range is not None:
             res.name = f'{res.name} ({mz_range[0]}-{mz_range[1]})'

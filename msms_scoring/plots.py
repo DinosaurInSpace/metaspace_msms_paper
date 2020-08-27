@@ -1,5 +1,6 @@
 # pip install numpy pandas scipy sklearn enrichmentanalysis-dvklopfenstein metaspace2020
 from functools import lru_cache
+from itertools import product
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -7,6 +8,8 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from msms_scoring.datasets import dataset_polarity, dataset_matrix, dataset_ms_mode
 from msms_scoring.fetch_data import get_msms_df
 from msms_scoring.metrics import get_ds_results
 
@@ -14,6 +17,11 @@ from msms_scoring.metrics import get_ds_results
 # Bigger plots
 matplotlib.use('Qt5Agg')
 plt.rcParams['figure.figsize'] = 15, 10
+sns.set_context("paper")
+# sns.set()
+sns.set_style("whitegrid")
+# sns.set(style="ticks")
+
 
 #%%
 # Plot distributions of p-value split up by whether the molecule was expected or unexpected
@@ -108,8 +116,6 @@ def plot_metric_values(ax, ds, field, filter, title):
         'tfidf': (1, 3),
         'coloc_fdr': (0, 1),
         'coloc_int_fdr': (0, 1),
-        'old_coloc_fdr': (0, 1),
-        'old_coloc_int_fdr': (0, 1),
         'msm_coloc_fdr': (0, 1),
         'msm_x_coloc_fdr': (0, 1),
     }.get(field, None)
@@ -126,7 +132,7 @@ def plot_metric_values(ax, ds, field, filter, title):
 def plot_metrics_per_ds(prefix, ds_ids):
     dss = [get_ds_results(ds_id) for ds_id in ds_ids]
     # 'global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80',
-    fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']
+    fields = ['coloc', 'coloc_int', 'coloc_fdr', 'coloc_int_fdr']
     for ds in dss:
         fig = plot_grid(
             fields,
@@ -139,7 +145,7 @@ def plot_metrics_per_ds(prefix, ds_ids):
 def plot_dss_per_metric(prefix, ds_ids):
     for filter, title in [('isomer', 'isomers'), ('analogue', 'analogues'), ('both', 'isomers & analogues')]:
         dss = [get_ds_results(ds_id) for ds_id in ds_ids]
-        # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr', 'old_coloc_fdr', 'old_coloc_int_fdr']:
+        # for field in ['global_enrich_uncorr', 'tfidf', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'msm_coloc_fdr', 'coloc_fdr']:
         for field in ['coloc_int_fdr']:
             fig = plot_grid(
                 dss,
@@ -147,18 +153,18 @@ def plot_dss_per_metric(prefix, ds_ids):
                 title=field + ' ' + title,
                 save_as=f'./scoring_results/metric histograms/{prefix}_all_dss_{field}_{filter}.png'
             )
-
-# One plot per field with different m/z limits
-ds_ids = ['2020-06-19_16h39m10s','2020-06-19_16h39m12s']
-for filter, title in [('analogue', 'analogues')]:
-    dss = [get_ds_results(ds_id, mz_range=mz_range) for mz_range in [None, (100, 1000)] for ds_id in ds_ids]
-    for field in ['coloc_fdr', 'coloc_int_fdr']:
-        fig = plot_grid(
-            dss,
-            lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
-            title=field + ' ' + title,
-            save_as=f'./scoring_results/metric histograms/mz_ranges_all_dss_{field}_{filter}.png'
-        )
+#
+# # One plot per field with different m/z limits
+# ds_ids = ['2020-06-19_16h39m10s','2020-06-19_16h39m12s']
+# for filter, title in [('analogue', 'analogues')]:
+#     dss = [get_ds_results(ds_id, mz_range=mz_range) for mz_range in [None, (100, 1000)] for ds_id in ds_ids]
+#     for field in ['coloc_fdr', 'coloc_int_fdr']:
+#         fig = plot_grid(
+#             dss,
+#             lambda ax, ds: plot_metric_values(ax, ds, field, filter, ds.name),
+#             title=field + ' ' + title,
+#             save_as=f'./scoring_results/metric histograms/mz_ranges_all_dss_{field}_{filter}.png'
+#         )
 
 #%% Histogram of # of frags detected vs expected
 
@@ -197,13 +203,16 @@ def plot_n_frags_hist2d(ds, save_as=None):
 
 # plot_n_frags_hist2d(get_ds_results('2020-06-19_16h39m10s')).show()
 #%% Plot #frags for msms_df
-msms_df = get_msms_df()
-msms_df = msms_df.merge(
-    msms_df[msms_df.is_parent].set_index(['polarity','hmdb_id']).mz.rename('parent_mz'),
-    left_on=['polarity','hmdb_id'], right_index=True
-)
+@lru_cache(maxsize=None)
+def msms_df_with_parents():
+    msms_df = get_msms_df()
+    return msms_df.merge(
+        msms_df[msms_df.is_parent].set_index(['polarity','hmdb_id']).mz.rename('parent_mz'),
+        left_on=['polarity','hmdb_id'], right_index=True
+    )
 @lru_cache(maxsize=None)
 def make_n_frags_df(pol, is_lipid, max_mz=None):
+    msms_df = msms_df_with_parents()
     df = msms_df[(msms_df.polarity == pol) & (msms_df.is_lipid == is_lipid) & (max_mz is None or msms_df.parent_mz <= max_mz)]
     print((pol, is_lipid, max_mz), len(df))
     CATS = [f'# parents with >= {j} frags' if j else '# parents' for j in range(5)]
@@ -234,16 +243,69 @@ def make_n_frags_plot(ax, pol, is_lipid, relative, max_mz=None):
     ax.grid(axis='y')
 
 
-for relative in [False, True]:
-    for max_mz in [None, 600]:
-        plt.close('all')
-        fig = plot_grid(
-            [('positive', False), ('positive', True), ('negative', False), ('negative', True)],
-            lambda ax, args: make_n_frags_plot(ax, *args, relative, max_mz),
-            title=f'# of fragments in m/z range' + (f' for mols <= {max_mz} Da' if max_mz else ''),
-            save_as=f'./scoring_results/n_frags_in_mz_range/n_frags_in_mz_range{"_max" + str(max_mz) if max_mz else ""}{"_pct" if relative else ""}.png',
-            layout_args={'h_pad': 4}
-        )
+# for relative in [False, True]:
+#     for max_mz in [None, 600]:
+#         plt.close('all')
+#         fig = plot_grid(
+#             [('positive', False), ('positive', True), ('negative', False), ('negative', True)],
+#             lambda ax, args: make_n_frags_plot(ax, *args, relative, max_mz),
+#             title=f'# of fragments in m/z range' + (f' for mols <= {max_mz} Da' if max_mz else ''),
+#             save_as=f'./scoring_results/n_frags_in_mz_range/n_frags_in_mz_range{"_max" + str(max_mz) if max_mz else ""}{"_pct" if relative else ""}.png',
+#             layout_args={'h_pad': 4}
+#         )
+
+#%%
+
+
+def plot_fdr_vs_precision(ds_ids):
+    dfs = []
+    ds = get_ds_results(ds_ids[0])
+    bin_edges = np.quantile(ds.mols_df.parent_n_frags, np.linspace(0,1,7))
+    bins = list(zip(bin_edges[:-1], bin_edges[1:]))
+    print(bins)
+    for filter, alg, n_frag_range in product([False], ['coloc_int_fdr'], bins):
+        for ds_id in ds_ids:
+            ds = get_ds_results(ds_id)
+            mols = ds.mols_df.sort_values(alg, ascending=True)
+            if filter:
+                mols = mols[mols.filter_reason == '']
+            mols = mols[(mols.parent_n_frags >= n_frag_range[0]) & (mols.parent_n_frags < n_frag_range[1])]
+            mols['ds_id'] = ds_id
+            mols['ds_name'] = ds.name
+            mols['filter'] = ('Filtered ' if filter else 'Unfiltered ') + str(n_frag_range)
+            mols['matrix/polarity'] = dataset_matrix[ds_id] + ' ' + dataset_polarity[ds_id]
+            mols['ms_mode'] = dataset_ms_mode[ds_id]
+            mols['Actual FDR %'] = 100 - (mols.is_expected.cumsum() / np.arange(1, len(mols) + 1) * 100)
+            mols['Predicted FDR %'] = mols[alg] * 100
+            mols['expected'] = mols.is_expected.astype('category').cat.rename_categories({True: 'Expected', False: 'Unexpected'})
+            dfs.append(mols)
+
+    plt.close('all')
+    g = sns.FacetGrid(
+        pd.concat(dfs),
+        row='filter',
+        col='ds_name',
+        margin_titles=True,
+        legend_out=True,
+        despine=True,
+        # xlim=(5, 50),
+        xlim=(0, 100),
+        ylim=(0, 100),
+    )
+
+    g.map(sns.scatterplot, 'Predicted FDR %', 'Actual FDR %', 'expected',
+        palette={'Expected': 'green', 'Unexpected': 'red'})
+    g.fig.subplots_adjust(wspace=0.1)
+    g.set_titles(template=' ', row_template='{row_name}', col_template='{col_name}')
+    g.add_legend()
+    g.fig.legends[0].texts[0].set_visible(False)  # Hide column name used as legend title
+    plt.show()
+
+
+# def plot_fdr_prec_all(ds_ids):
+#     plt.close('all')
+#     fig = plot_grid()
+
 
 #%%
 

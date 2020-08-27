@@ -125,7 +125,6 @@ def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=T
         'inv_tfidf', 'tfidf', 'global_enrich_p', 'global_enrich_uncorr', 'group_enrich_p', 'group_enrich_uncorr',
         'p_value_20','p_value_50','p_value_80',
         # 'msm_coloc_fdr','msm_x_coloc_fdr'
-        'old_coloc_fdr', 'old_coloc_int_fdr',
         'all_frag_formulas',
     ]
 
