@@ -1,6 +1,9 @@
 /TEMP_to_delete_pre_publish/
 /TEMP_to_delete.ipynb
 /TEMP/
+/scoring_results
+/sum_spectra/
+/raw_datasets/
 /I_spotted_standards/cm3_msms_all_neg.csv
 /I_spotted_standards/cm3_msms_all_pos.csv
 /I_spotted_standards/cm3_msms_stds_neg_df
