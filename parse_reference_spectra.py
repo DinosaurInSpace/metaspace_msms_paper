@@ -142,14 +142,22 @@ def molecule_from_gnps(s):
         return can_smiles
 
 
-def search_GNPS_targets(ref_db, GNPS_df):
+def search_GNPS_targets(ref_db, GNPS_df, ref_exptl_embl_pos):
     # Returns subset of GNPS df with matching canonical smiles to ref_db
     GNPS_df['can_smiles'] = GNPS_df.apply(lambda x: molecule_from_gnps(x),
                                           axis=1)
     GNPS_df = GNPS_df[GNPS_df.can_smiles != None]
+
+    # Join GNPS_df wtih EMBL exptl spectra
+    # Kind of gross, but easiest way to get extra data in
+    EMBL_df = pd.read_pickle(ref_exptl_embl_pos)
+    GNPS_df = pd.concat([GNPS_df, EMBL_df], sort=True)
+
+    print('here')
     ref_db['can_smiles'] = ref_db['inchi'].apply(lambda x: can_no_stereo_smiles_from_mol(Chem.inchi.MolFromInchi(x)))
     db_can_smiles = list(ref_db['can_smiles'].unique())
     GNPS_hits_df = GNPS_df[GNPS_df.can_smiles.isin(db_can_smiles)]
+    print(len(GNPS_hits_df))
     return GNPS_hits_df
 
 
@@ -231,11 +239,13 @@ def output_loop(input_db,
                 hmdb_pos_theo,
                 hmdb_neg_theo,
                 mona_pos_path,
-                mona_neg_path):
+                mona_neg_path,
+                ref_exptl_embl_pos):
     # Executes main loop to parse input database and pull spectra from local dumps.
+    print(input_db)
     ref_db = load_molecule_database(input_db)
     gnps_df = parse_gnps_json(gnps_path)
-    gnps_hits_df = search_GNPS_targets(ref_db, gnps_df)
+    gnps_hits_df = search_GNPS_targets(ref_db, gnps_df, ref_exptl_embl_pos)
     gnps_hits_df.to_pickle(output_path + 'gnps_df.pickle')
     print('gnps_hits_df: ', gnps_hits_df.shape)
 

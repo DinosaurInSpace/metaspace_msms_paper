@@ -156,8 +156,14 @@ def mass_check(em, im):
 
 def results_clean_up(has_ms2_df, sirius_output_df, polarity):
     # Empty!  columns = [exits, source, polarity]
-    print(2, 'sirius_output_df', sirius_output_df.shape, sirius_output_df)
+    #print(2, 'sirius_output_df', sirius_output_df.shape, list(sirius_output_df),
+    #      sirius_output_df.head())
 
+    #print(4, "has_ms2_df", has_ms2_df.shape, has_ms2_df.head())
+
+    # This merge is failing?  Result is empty df
+    # has_ms2_df db_index = "0_HMDB0000630_Cytosine"
+    # Sirius output df is wrong!
     # Merges Sirius results and metadata
     ms2_meta_df = pd.merge(has_ms2_df,
                            sirius_output_df,
@@ -166,7 +172,7 @@ def results_clean_up(has_ms2_df, sirius_output_df, polarity):
                            right_index=True)
 
     # Joins MS2 spectra to metadata
-    print('10', ms2_meta_df.shape)
+    #print('10', ms2_meta_df.shape, ms2_meta_df.head())
     df = df_merge(ms2_meta_df)
     df = df.dropna()
     df['expl_ex'] = df.explanation.apply(lambda x: ex(x))
@@ -279,6 +285,8 @@ def primary_loop(limit_list,
     ref_db = pd.concat([pd.read_pickle(ref_expt),
                         pd.read_pickle(ref_theo)], sort=True
                        )
+
+    # Error here on out_df...
     joined_out = results_clean_up(ref_db, out_df, polarity)
 
     # Clean-up database for METASPACE
