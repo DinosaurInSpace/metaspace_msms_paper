@@ -88,7 +88,7 @@ def fetch_ds_results(ds_id):
     res = DSResults()
     res.ds_id = ds_id
     res.sm_ds = sm.dataset(id=ds_id)
-    res.db_id = [db for db in res.sm_ds.databases if re.match(r'^\d|^ls_cm3_msms_all_', db)][0]
+    res.db_id = [db['id'] for db in res.sm_ds.database_details if re.match(r'^\d|^ls_cm3_msms_all_', db['name'])][0]
     if ds_id in dataset_aliases:
         res.name = dataset_aliases[res.ds_id]
     else:
@@ -150,7 +150,7 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
     df['in_range'] = (df.mz >= min_mz) & (df.mz <= max_mz)
     df['is_detected'] = df.formula.isin(res.anns.ionFormula) & df.in_range
     df['parent_is_detected'] = df.hmdb_id.isin(df[df.is_parent & df.is_detected].hmdb_id)
-    href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db={res.db_id}&sort=mz&fdr=0.5&q='
+    href_base = f'https://beta.metaspace2020.eu/annotations?ds={res.ds_id}&db_id={res.db_id}&sort=mz&fdr=0.5&q='
     df['ann_href'] = href_base + df.formula
     v = pd.DataFrame({
         'parent_formula': df[df.is_parent].set_index('hmdb_id').formula,

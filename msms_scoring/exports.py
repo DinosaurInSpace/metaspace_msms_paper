@@ -1,7 +1,7 @@
 # pip install numpy pandas scipy sklearn enrichmentanalysis-dvklopfenstein metaspace2020
 from itertools import product
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -94,7 +94,7 @@ def get_raw_export_data(res: DSResults):
     return {
         'Mols': res.mols_df.sort_values(['coloc_int_fdr']),
         'Mols by annotation': res.ann_mols_df.set_index(['formula', 'hmdb_id']).sort_values(['formula', 'coloc_int_fdr']),
-        'Annotations by mol': res.ann_mols_df.set_index(['hmdb_id', 'formula']).sort_values(['coloc_int_fdr', 'formula']),
+        'Annotations by mol': res.ann_mols_df.set_index(['hmdb_id', 'formula']).sort_values(['coloc_int_fdr', 'mz']),
         'Annotations': res.anns_df.sort_values(['mz']),
     }
 
@@ -120,7 +120,7 @@ COLUMN_SCALES = {
     'feature_n': None,
     'parent_num_features': None,
 }
-def export(export_data: Dict[str, pd.DataFrame], out_file: str, grouped_sheets=True):
+def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]], out_file: str, grouped_sheets=True):
     drop_cols = [
         'inv_tfidf', 'tfidf', 'global_enrich_p', 'global_enrich_uncorr', 'group_enrich_p', 'group_enrich_uncorr',
         'p_value_20','p_value_50','p_value_80',
@@ -339,5 +339,41 @@ def export_molecule_well_behavedness(ds_ids, hmdb_ids):
         'good': good,
     }, 'scoring_results/well_behavedness.xlsx', grouped_sheets=False)
 
+# %%
+
+def export_top_molecules(ds_ids, output_name):
+    # msms_df = get_msms_df()
+    results_dfs = []
+    for ds_id in ds_ids:
+        res = get_ds_results(ds_id)
+        results_dfs.append(res.mols_df.assign(ds_name=res.name))
+    results_df = pd.concat(results_dfs)
+    grp_fdr = results_df.groupby('ds_name').coloc_int_fdr
+    ds_stats = pd.DataFrame({
+        f'FDR <= {i*100}': grp_fdr.apply(lambda s: np.count_nonzero(s <= i))
+        for i in [0.05,0.1,0.2,0.5,1.0,1000]
+    })
+
+    fdr_10 = (
+        results_df[(results_df.coloc_int_fdr <= 0.1) & (results_df.filter_reason == '')]
+        .sort_values('coloc_int_fdr')
+        .reset_index()
+        .set_index(['ds_name', 'hmdb_id'])
+    )
+    summary = (
+        fdr_10
+        .reset_index()
+        .groupby('hmdb_id')
+        .agg({'ds_name': 'count', 'mol_name': 'max', 'coloc_int_fdr': 'mean'})
+        .rename(columns={'ds_name': 'detections', 'coloc_int_fdr': 'mean_coloc_int_fdr'})
+        .sort_values('mean_coloc_int_fdr')
+        .sort_values('detections', ascending=False, kind='mergesort')
+    )
+
+    export({
+        'summary': (summary, {'column_scales': {'mean_coloc_int_fdr': SCALE_ONE_TO_ZERO}}),
+        'ds_stats': ds_stats,
+        'fdr_10': (fdr_10, {'column_scales': {'coloc_fdr': SCALE_ONE_TO_ZERO, 'coloc_int_fdr': SCALE_ONE_TO_ZERO}}),
+    }, f'scoring_results/top_mols_{output_name}.xlsx', grouped_sheets=False)
 
 # %%
