@@ -16,7 +16,7 @@ from msms_scoring.datasets import dataset_ids, msms_mol_ids
 from msms_scoring.fetch_data import get_msms_df, get_msms_results_for_ds, fetch_ds_results
 from msms_scoring.metrics import get_ds_results
 from msms_scoring.plots import plot_fdr_vs_precision
-from msms_scoring.exports import export_mean_average_precision, export_fragments, export_molecule_well_behavedness, export_top_molecules
+from msms_scoring.exports import export_mean_average_precision, export_fragments, export_molecule_well_behavedness, export_top_molecules, export_mols_for_chemrich
 
 #%%
 pd.set_option('max_colwidth', 1000)
@@ -53,4 +53,7 @@ export_top_molecules(dataset_ids, 'spotting')
 # for ds_id in hq_in_mz_range:
 #     export_fragments(ds_id, 'raw data/hq_mz_range_includes_150')
 # export_top_molecules(hq_in_mz_range, 'high_quality_mz_range_includes_150')
+#%%
+for ds_id in dataset_ids[4:6]:
+    export_mols_for_chemrich(ds_id)
 #%%

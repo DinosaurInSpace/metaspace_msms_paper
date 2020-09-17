@@ -199,8 +199,6 @@ def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
     fdr_df['target_cnt'] = np.cumsum(fdr_df.target_cnt)
     # METASPACE-style FDR
 
-    # fdr_df.sort_values('fdr', inplace=True)
-    # fdr_df['fdr_mono'] = np.minimum.accumulate(fdr_df.fdr.iloc[::-1])[::-1]
     # "Rule-of-succession" FDR (conservative - won't claim 0% FDR when decoys are sparse)
     if rule_of_succession:
         bias = (len(decoys_df) + 1) / (len(targets_df) + 1)
@@ -210,7 +208,18 @@ def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
         fdr_df['fdr_raw'] = fdr_df.decoy_cnt / np.clip(fdr_df.target_cnt, 1, None) / bias
     fdr_df.sort_values('score', ascending=False, inplace=True)
     fdr_df['fdr'] = np.minimum.accumulate(fdr_df.fdr_raw.iloc[::-1])[::-1]
-    return fdr_df[~fdr_df.id.isna()].set_index('id').fdr
+    fdr_df.loc[fdr_df.score == 0, 'fdr'] = 1
+
+    target_fdrs = fdr_df[~fdr_df.id.isna()].set_index('id')[['fdr']]
+
+    # Add "fold change", calculated as "target score / average decoy score"
+    avg_decoy_score = np.mean(decoy_scores)
+    if avg_decoy_score != 0:
+        target_fdrs['fold_change'] = target_scores / avg_decoy_score
+    else:
+        target_fdrs['fold_change'] = 1
+
+    return target_fdrs
 
 def add_fdr(res: DSResults):
     global results
@@ -220,10 +229,6 @@ def add_fdr(res: DSResults):
         return sum(res.get_coloc(parent, f) for f in frags if f in ints.index and max_int > ints[f])
     def coloc_score(parent, frags):
         return sum(res.get_coloc(parent, f) for f in frags)
-    def msm_coloc_score(parent, frags):
-        return coloc_score(parent, frags) + res.anns_df.msm[frags].sum()
-    def msm_x_coloc_score(parent, frags):
-        return sum(res.get_coloc(parent, f) * res.anns_df.msm[f] for f in frags if f in res.anns_df.index)
 
     def get_decoy(alg_func, n_frags):
         parent = np.random.choice(res.anns_df.index)
@@ -237,7 +242,6 @@ def add_fdr(res: DSResults):
     for alg, alg_func in [('coloc', coloc_score), ('coloc_int', coloc_int_score)]:
         alg_scores = []
         alg_results = []
-        old_results = []
         for n_frags, grp in res.ann_mols_df.groupby('parent_n_frags'):
             decoy_scores = [get_decoy(alg_func, n_frags) for n in range(n_decoys)]
             target_scores = grp.sort_values('is_parent', ascending=False).groupby('hmdb_id').formula.apply(lambda fs: alg_func(fs.values[0], fs.values[1:]))
@@ -246,7 +250,9 @@ def add_fdr(res: DSResults):
             alg_results.append(get_fdr(decoy_scores, target_scores))
             # print(f'{alg} {n_frags}: {len(grp)}, {np.mean(target_scores)}, {np.mean(decoy_scores)}')
         results[alg] = pd.concat(alg_scores)
-        results[f'{alg}_fdr'] = pd.concat(alg_results)
+        all_alg_results = pd.concat(alg_results)
+        results[f'{alg}_fdr'] = all_alg_results.fdr
+        results[f'{alg}_fc'] = all_alg_results.fold_change
 
     fdrs_df = pd.DataFrame(results)
     res.ann_mols_df.drop(columns=fdrs_df.columns, errors='ignore', inplace=True)

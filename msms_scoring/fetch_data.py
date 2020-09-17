@@ -10,30 +10,79 @@ import pandas as pd
 from metaspace.sm_annotation_utils import SMInstance, SMDataset
 from scipy.ndimage import median_filter
 from sklearn.metrics import pairwise_kernels
+import cpyMSpec
 
 #%%
 from msms_scoring.datasets import dataset_aliases
 
 sm = SMInstance()
+
+def make_id_mapping_df():
+    """
+    Saved code for generating `id_mapping.csv` needed for get_msms_df. Has some manual steps, so don't run this directly
+    """
+    # Creating ID mapping using PubChem Exchange service
+    get_msms_df().hmdb_id.drop_duplicates().to_csv('hmdb_ids.txt', header=None, index=None)
+
+    # Use https://pubchem.ncbi.nlm.nih.gov/idexchange/idexchange.cgi to convert the hmdb_ids to
+    # CIDs, SMILES and InChIKeys, renaming the output files to
+    # 'hmdb_id_to_cid.txt', 'hmdb_id_to_smiles.txt', 'hmdb_id_to_inchikey.txt' respectively
+
+    cids = pd.read_csv('hmdb_id_to_cid.txt', sep='\t', header=None, names=['hmdb_id', 'pubchem_cid'], index_col=0, skipinitialspace=True)
+    smiles = pd.read_csv('hmdb_id_to_smiles.txt', sep='\t', header=None, names=['hmdb_id', 'smiles'], index_col=0, skipinitialspace=True)
+    inchikeys = pd.read_csv('hmdb_id_to_inchikey.txt', sep='\t', header=None, names=['hmdb_id', 'inchikey'], index_col=0, skipinitialspace=True)
+    id_mapping_df = (
+        smiles
+            .join(cids, how='left')
+            .join(inchikeys, how='left')
+    )
+    id_mapping_df.loc['HMDB0000956', 'pubchem_cid'] = 444305  # L(+)-Tartaric acid mysteriously fails to translate
+    id_mapping_df.loc['HMDB0000956', 'smiles'] = '[C@@H]([C@H](C(=O)O)O)(C(=O)O)O'
+    id_mapping_df.loc['HMDB0000956', 'inchikey'] = 'FEWJPZIEWOKRBE-JCYAYHJZSA-N'
+    id_mapping_df['pubchem_cid'] = id_mapping_df.pubchem_cid.apply(lambda cid: str(int(cid)))
+    id_mapping_df.to_csv('to_metaspace/id_mapping.csv')
+
 #%%
 PARSE_MOL_ID = re.compile(r'([^_]+)_(\d+)([pf])')
 
 
 @lru_cache()  # Only load when needed, as it eats a bunch of memory
-def get_msms_df():
-    msms_df = pd.read_pickle('to_metaspace/cm3_msms_all_both.pickle')
-    del msms_df['db_isobar']
-    msms_df.rename(columns={'ion_mass': 'mz'}, inplace=True)
+def get_msms_df(use_v2=False):
+    # cache_path = Path(f'./scoring_results/cache/msms_df{"_v2" if use_v2 else ""}.csv')
+    # if cache_path.exists():
+    #     return pd.read_csv(cache_path)
+
+    if not use_v2:
+        msms_df = pd.read_pickle('to_metaspace/cm3_msms_all_both.pickle')
+        msms_df.rename(columns={'ion_mass': 'mz'}, inplace=True)
+        # msms_df = msms_df[['polarity', 'id', 'name', 'formula', 'mz']]
+    else:
+        msms_df = pd.concat([
+            pd.read_csv('to_metaspace/cm3_msms_all_pos_v2.csv', sep='\t').assign(polarity='positive'),
+            pd.read_csv('to_metaspace/cm3_msms_all_neg_v2.csv', sep='\t').assign(polarity='negative'),
+        ], ignore_index=True)
+        # msms_df = msms_df[['polarity', 'id', 'name', 'formula']]
     msms_df['hmdb_id'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[1])
     msms_df['frag_idx'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[2]).astype(np.int32)
     msms_df['is_parent'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[3]) == 'p'
     msms_df['mol_name'] = msms_df.name.str.replace("^[^_]+_[^_]+_", "")
     msms_df['hmdb_href'] = 'https://hmdb.ca/metabolites/' + msms_df.hmdb_id
 
+    # Calculate m/zs for each molecule
+    if use_v2:
+        mzs_lookup = []
+        for polarity in ['positive', 'negative']:
+            for formula in msms_df.formula[msms_df.polarity == polarity].unique():
+                iso_pattern = cpyMSpec.isotopePattern(formula)
+                iso_pattern.addCharge(1 if polarity == 'positive' else -1)
+                mzs_lookup.append((polarity, formula, iso_pattern.masses[0]))
+        mzs_lookup_df = pd.DataFrame(mzs_lookup, columns=['polarity', 'formula', 'mz'])
+        msms_df = msms_df.merge(mzs_lookup_df, on=['polarity', 'formula'])
+
     # Clean up results by converting everything to HMDB IDs and removing items that can't be converted
-    msms_df.hmdb_id.rename({
-        'msmls87': 'HMDB0006557',  # ADP-GLUCOSE -> ADP-glucose
-    }, inplace=True)
+    msms_df.replace({'hmdb_id': {
+        'msmls87': 'HMDB0006557' # ADP-GLUCOSE -> ADP-glucose
+    }}, inplace=True)
     ids_to_drop = [
         'msmls65',  # 5-HYDROXYTRYPTOPHAN (Different stereochemistry to HMDB0000472 5-Hydroxy-L-tryptophan, which is also included)
         'msmls183',  # DEOXYGUANOSINE-MONOPHOSPHATE (Identical to HMDB0001044 2'-Deoxyguanosine 5'-monophosphate)
@@ -49,14 +98,22 @@ def get_msms_df():
     # also present in core_metabolome_v3
     lipid_ids = set(hmdb_id for hmdb_id in open('hmdb_lipid_ids.txt').read().split('\n') if hmdb_id)
     msms_df['is_lipid'] = msms_df.hmdb_id.isin(lipid_ids)
+    # Add PubChem CIDs, SMILESs, InChIKeys, if the mapping has been generated
+    if Path('to_metaspace/id_mapping.csv').exists():
+        id_mapping = pd.read_csv('to_metaspace/id_mapping.csv', index_col=0)
+        msms_df = msms_df.merge(id_mapping, left_on='hmdb_id', right_index=True, how='left')
     # Add sorted list of fragments for later deduping
-    all_frags = msms_df.groupby(['hmdb_id', 'polarity']).formula.apply(lambda fs: tuple(sorted(fs))).rename('all_frag_formulas')
+    all_frags = msms_df.groupby(['hmdb_id', 'polarity']).formula.apply(lambda fs: ','.join(sorted(fs))).rename('all_frag_formulas')
     msms_df = msms_df.merge(
         all_frags,
         how='left',
         left_on=['hmdb_id', 'polarity'],
         right_index=True,
     )
+    msms_df = msms_df.sort_values(['polarity','hmdb_id','frag_idx']).reset_index(drop=True)
+
+    # cache_path.parent.mkdir(parents=True, exist_ok=True)
+    # msms_df[['polarity','hmdb_id', 'mol_name','all_frag_formulas']].drop_duplicates().to_csv(cache_path, index=False)
 
     return msms_df
 
@@ -193,18 +250,18 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
         'hmdb_id', 'mz', 'is_detected', 'mol_name', 'formula', 'is_lipid',
         'msm', 'off_sample', 'intensity',
         'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered', 'mol_href', 'hmdb_href',
-        'all_frag_formulas',
+        'all_frag_formulas', 'pubchem_cid', 'smiles', 'inchikey',
     ]].set_index('hmdb_id')
 
     res.ann_mols_df = df[[
         'id', 'hmdb_id', 'mz', 'is_parent', 'is_detected', 'mol_name', 'formula', 'is_lipid',
         'msm', 'off_sample', 'intensity', 'parent_intensity',
         'coloc_to_parent', 'parent_formula', 'frag_idx', 'ann_href', 'mol_href', 'hmdb_href',
-        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered', 'db_n_isobar',
+        'parent_n_detected', 'parent_n_frags', 'parent_n_frags_unfiltered',
     ]].set_index('id')
 
     res.anns_df = df[df.is_detected][[
-        'formula', 'mz', 'msm', 'off_sample', 'intensity', 'ann_href', 'db_n_isobar',
+        'formula', 'mz', 'msm', 'off_sample', 'intensity', 'ann_href',
     ]].drop_duplicates().set_index('formula')
 
 if __name__ == '__main__':

@@ -128,9 +128,11 @@ def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]
         'all_frag_formulas',
     ]
 
-    def to_excel_colorize(writer, df, sheet_options, index=True, header=True, autofilter=True, **kwargs):
+    def to_excel_colorize(writer, df, sheet_options, autofilter=True, **kwargs):
         column_scales = {**COLUMN_SCALES, **sheet_options.get('column_scales', {})}
         column_scale_default = sheet_options.get('column_scale_default', SCALE_DEFAULT)
+        index = sheet_options.get('index', True)
+        header = sheet_options.get('header', True)
 
         if df is not None and not df.empty:
             df = df.drop(columns=drop_cols, errors='ignore')
@@ -375,5 +377,26 @@ def export_top_molecules(ds_ids, output_name):
         'ds_stats': ds_stats,
         'fdr_10': (fdr_10, {'column_scales': {'coloc_fdr': SCALE_ONE_TO_ZERO, 'coloc_int_fdr': SCALE_ONE_TO_ZERO}}),
     }, f'scoring_results/top_mols_{output_name}.xlsx', grouped_sheets=False)
+
+# %%
+
+
+def export_mols_for_chemrich(ds_id):
+    res = get_ds_results(ds_id)
+    df = res.mols_df[['mol_name','inchikey','pubchem_cid','smiles','coloc_int_fdr','coloc_int_fc']]
+    df = df[df.coloc_int_fc > 0]
+    df = df[df.coloc_int_fdr < 1]
+    df = df.drop_duplicates('pubchem_cid')
+    df = df.rename(columns={
+        'mol_name': 'Compound Name',
+        'inchikey': 'InChiKeys',
+        'pubchem_cid': 'Pubchem ID',
+        'smiles': 'SMILES',
+        'coloc_int_fdr': 'pvalue',
+        'coloc_int_fc': 'foldchange',
+    })
+    export({
+        'Sheet1': (df, {'index': False}),
+    }, f'scoring_results/chemrich/{res.name}.xlsx', grouped_sheets=False)
 
 # %%
