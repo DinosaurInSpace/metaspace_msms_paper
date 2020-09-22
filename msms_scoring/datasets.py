@@ -64,7 +64,7 @@ dataset_ms_mode = {
     '2020-08-11_16h49m43s': 'AIF',
 }
 
-msms_mol_ids = set(pd.read_csv('./spotting/msms_spotted_mols.csv')[lambda df: df.cm_name.notna()].hmdb_id)
+msms_mol_ids = set(pd.read_csv('./spotting/msms_spotted_mols.csv').hmdb_id)
 
 # Optional lists mapping dataset IDs to sets of HMDB IDs for molecules that are expected
 dataset_mol_lists = {

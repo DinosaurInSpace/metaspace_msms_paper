@@ -13,7 +13,7 @@ from sklearn.metrics import pairwise_kernels
 import cpyMSpec
 
 #%%
-from msms_scoring.datasets import dataset_aliases
+from msms_scoring.datasets import dataset_aliases, dataset_mol_lists
 
 sm = SMInstance()
 
@@ -47,19 +47,19 @@ PARSE_MOL_ID = re.compile(r'([^_]+)_(\d+)([pf])')
 
 
 @lru_cache()  # Only load when needed, as it eats a bunch of memory
-def get_msms_df(use_v2=False):
+def get_msms_df(use_latest_db=True):
     # cache_path = Path(f'./scoring_results/cache/msms_df{"_v2" if use_v2 else ""}.csv')
     # if cache_path.exists():
     #     return pd.read_csv(cache_path)
 
-    if not use_v2:
+    if not use_latest_db:
         msms_df = pd.read_pickle('to_metaspace/cm3_msms_all_both.pickle')
         msms_df.rename(columns={'ion_mass': 'mz'}, inplace=True)
         # msms_df = msms_df[['polarity', 'id', 'name', 'formula', 'mz']]
     else:
         msms_df = pd.concat([
-            pd.read_csv('to_metaspace/cm3_msms_all_pos_v2.csv', sep='\t').assign(polarity='positive'),
-            pd.read_csv('to_metaspace/cm3_msms_all_neg_v2.csv', sep='\t').assign(polarity='negative'),
+            pd.read_csv('to_metaspace/cm3_msms_all_pos_v3.csv', sep='\t').assign(polarity='positive'),
+            pd.read_csv('to_metaspace/cm3_msms_all_neg_v3.csv', sep='\t').assign(polarity='negative'),
         ], ignore_index=True)
         # msms_df = msms_df[['polarity', 'id', 'name', 'formula']]
     msms_df['hmdb_id'] = msms_df.id.str.replace(PARSE_MOL_ID, lambda m: m[1])
@@ -69,7 +69,7 @@ def get_msms_df(use_v2=False):
     msms_df['hmdb_href'] = 'https://hmdb.ca/metabolites/' + msms_df.hmdb_id
 
     # Calculate m/zs for each molecule
-    if use_v2:
+    if use_latest_db:
         mzs_lookup = []
         for polarity in ['positive', 'negative']:
             for formula in msms_df.formula[msms_df.polarity == polarity].unique():
@@ -132,6 +132,8 @@ class DSResults:
     ann_mols_df: pd.DataFrame
     anns_df: pd.DataFrame
     metric_scores: pd.DataFrame
+    mols_meta: pd.DataFrame
+    anns_meta: pd.DataFrame
 
     def get_coloc(self, f1, f2):
         if f1 == f2:
@@ -142,6 +144,7 @@ class DSResults:
 
 
 def fetch_ds_results(ds_id):
+    print(f'fetch_ds_results({ds_id})')
     res = DSResults()
     res.ds_id = ds_id
     res.sm_ds = sm.dataset(id=ds_id)
@@ -199,8 +202,10 @@ def add_result_dfs(res: DSResults, lo_mz=None, hi_mz=None):
     #     detected_frag_ids.update(mol_ids)
     #     detected_mol_ids.update(PARSE_MOL_ID.match(mol_id).groups()[0] for mol_id in mol_ids)
 
+    # Use latest DB for spotted datasets, original DB for non-spotted datasets, because
+    # non-spotted datasets have had their DBs custom-generated from the original DB
+    df = get_msms_df(res.ds_id in dataset_mol_lists)
     # Exclude fragments of the wrong polarity
-    df = get_msms_df()
     df = df[df.polarity == res.sm_ds.polarity.lower()].copy()
     min_mz = max(res.anns.mz.min() - 0.1, lo_mz or 0)
     max_mz = min(res.anns.mz.max() + 0.1, hi_mz or 2000)

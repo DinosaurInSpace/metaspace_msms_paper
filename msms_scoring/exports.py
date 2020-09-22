@@ -220,7 +220,6 @@ def export_mean_average_precision(ds_ids, filename, skip_mAP=False):
             metric_scores.append(ds.metric_scores.assign(ds=ds.name, params=params))
             metric_counts.append(pd.Series({**ds.metric_counts, 'ds': ds.name, 'params': params}))
 
-
     metric_scores = pd.concat(metric_scores, ignore_index=True)
     metric_scores = metric_scores.set_index(['params','ds','metric']).reindex(product(PARAMS, DS_NAMES, METRICS)).reset_index()
     metric_counts = pd.DataFrame(metric_counts)
@@ -386,6 +385,8 @@ def export_mols_for_chemrich(ds_id):
     df = res.mols_df[['mol_name','inchikey','pubchem_cid','smiles','coloc_int_fdr','coloc_int_fc']]
     df = df[df.coloc_int_fc > 0]
     df = df[df.coloc_int_fdr < 1]
+    df['coloc_int_fdr'] = df.coloc_int_fdr / 2
+    df['coloc_int_fc'] = np.where(df.coloc_int_fc < 1, df.coloc_int_fc / 2, df.coloc_int_fc * 2)
     df = df.drop_duplicates('pubchem_cid')
     df = df.rename(columns={
         'mol_name': 'Compound Name',
@@ -397,6 +398,55 @@ def export_mols_for_chemrich(ds_id):
     })
     export({
         'Sheet1': (df, {'index': False}),
-    }, f'scoring_results/chemrich/{res.name}.xlsx', grouped_sheets=False)
+    }, f'scoring_results/chemrich/{res.name} half-p-value double-foldchange/input data.xlsx', grouped_sheets=False)
+
+
+
+
+def export_mols_for_chemrich_summarization(ds_ids, output_name):
+    def get_median_fdr_fc(grp):
+        grp = grp.sort_values('coloc_int_fdr')
+        mid_idx = len(grp) // 2
+        if len(grp) % 2 == 0:
+            mid = grp.iloc[mid_idx:mid_idx + 2]
+        else:
+            mid = grp.iloc[mid_idx:mid_idx + 1]
+        return pd.Series({
+            'median_fdr': mid.coloc_int_fdr.mean(),
+            'median_fc': mid.coloc_int_fc.mean(),
+            'count': len(grp),
+        })
+    results_dfs = []
+    for ds_id in ds_ids:
+        res = get_ds_results(ds_id)
+        results_dfs.append(res.mols_df.assign(ds_name=res.name))
+    results_df = pd.concat(results_dfs)
+    results_df = results_df[results_df.coloc_int_fc > 0]
+    results_df = results_df[results_df.coloc_int_fdr < 1]
+    mol_median_scores = results_df.groupby('pubchem_cid')[['coloc_int_fdr', 'coloc_int_fc']].apply(get_median_fdr_fc)
+    df = (
+        results_df[['mol_name','inchikey','pubchem_cid','smiles']]
+        # Some HMDB IDs translated to the same CID, e.g. D-Fructose/L-Sorbose both get CID 92092.
+        # Just pick one of the options arbitrarily
+        .drop_duplicates('pubchem_cid')
+        .merge(mol_median_scores, left_on='pubchem_cid', right_index=True)
+        # ChemRICH doesn't have a configurable minimum p-value threshold, so scale the FDRs
+        # to align our desired threshold to their imposed threshold
+        .assign(median_fdr=lambda df: df.median_fdr / 2)
+        .sort_values('median_fdr')
+        .sort_values('count', ascending=False, kind='mergesort')
+        .rename(columns={
+            'mol_name': 'Compound Name',
+            'inchikey': 'InChiKeys',
+            'pubchem_cid': 'Pubchem ID',
+            'smiles': 'SMILES',
+            'median_fdr': 'pvalue',
+            'median_fc': 'foldchange',
+        })
+    )
+
+    export({
+        'Sheet1': (df, {'index': False}),
+    }, f'scoring_results/chemrich/{output_name}/input data.xlsx', grouped_sheets=False)
 
 # %%

@@ -28,24 +28,24 @@ HMDB0000133,Guanosine,Guanosine
 HMDB0000148,L-Glutamic acid,L-Glutamic acid
 HMDB0000252,Sphingosine,Sphingosine
 HMDB0001256,Spermine,Spermine
-HMDB0000043,Betaine,
-HMDB0000960,dGDP,
-HMDB0006899,Alanylglycine,
-HMDB0011129,LysoPE(0:0/18:0),
-HMDB0000874,Tauroursodeoxycholic acid,
-HMDB0000085,,
-HMDB0013222,Beta-Guanidinopropionic acid,
-HMDB0001983,5'-Deoxyadenosine,
-HMDB0003337,Oxidized glutathione,
-HMDB0003333,8-Hydroxy-deoxyguanosine,
-HMDB0002931,,
-HMDB0002100,,
-HMDB0001257,Spermidine,
-HMDB0010381,,LysoPC(15:0)
-HMDB0000883,L-Valine,
-HMDB0001341,ADP,
-HMDB0000641,L-Glutamine,
-HMDB0000896,,
-HMDB0003355,5-Aminopentanoic acid,
-HMDB0002031,Ureidoisobutyric acid,
-HMDB0000951,,
+HMDB0000043,Betaine,Betaine
+HMDB0000960,dGDP,dGDP
+HMDB0006899,Alanylglycine,Alanylglycine
+HMDB0011130,LysoPE(18:0/0:0),LysoPE(18:0/0:0)
+HMDB0000874,Tauroursodeoxycholic acid,Tauroursodeoxycholic acid
+HMDB0000085,Deoxyguanosine,Deoxyguanosine
+HMDB0013222,Beta-Guanidinopropionic acid,Beta-Guanidinopropionic acid
+HMDB0001983,5'-Deoxyadenosine,5'-Deoxyadenosine
+HMDB0003337,Oxidized glutathione,Oxidized glutathione
+HMDB0003333,8-Hydroxy-deoxyguanosine,8-Hydroxy-deoxyguanosine
+HMDB0002931,N-Acetylserine,N-Acetylserine
+HMDB0002100,Palmitoylethanolamide,Palmitoylethanolamide
+HMDB0001257,Spermidine,Spermidine
+HMDB0010381,LysoPC(15:0),LysoPC(15:0)
+HMDB0000883,L-Valine,L-Valine
+HMDB0001341,ADP,ADP
+HMDB0000641,L-Glutamine,L-Glutamine
+HMDB0000896,Taurodeoxycholic acid,Taurodeoxycholic acid
+HMDB0003355,5-Aminopentanoic acid,5-Aminopentanoic acid
+HMDB0002031,Ureidoisobutyric acid,Ureidoisobutyric acid
+HMDB0000951,Taurodeoxycholic acid,Taurochenodesoxycholic acid
