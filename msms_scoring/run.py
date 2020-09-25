@@ -10,8 +10,7 @@ except ImportError:
 #%%
 import numpy as np
 import pandas as pd
-from msms_scoring.datasets import dataset_ids, msms_mol_ids, datasets_df
-from msms_scoring.datasets_full import whole_body_ds_ids, high_quality_ds_ids, high_quality_full_ds_ids
+from msms_scoring.datasets import dataset_ids, whole_body_ds_ids, high_quality_ds_ids, msms_mol_ids, datasets_df
 from msms_scoring.fetch_data import get_msms_df, get_msms_results_for_ds, fetch_ds_results
 from msms_scoring.metrics import get_ds_results
 from msms_scoring.plots import plot_fdr_vs_precision
@@ -60,9 +59,9 @@ export_top_molecules(dataset_ids, 'spotting')
 #%%
 # for ds_id in dataset_ids[4:6]:
 #     export_mols_for_chemrich(ds_id)
-export_mols_for_chemrich_summarization([*whole_body_ds_ids, *high_quality_full_ds_ids], 'summary')
+export_mols_for_chemrich_summarization([*whole_body_ds_ids, *high_quality_ds_ids], 'summary')
 #%%
-summary_df = get_summary_df_for_chemrich2([*whole_body_ds_ids, *high_quality_full_ds_ids])
+summary_df = get_summary_df_for_chemrich2([*whole_body_ds_ids, *high_quality_ds_ids])
 
 #%%
 sn_level = summary_df[summary_df.lipid_sn_name.isna() | ~summary_df.lipid_sn_name.duplicated()]

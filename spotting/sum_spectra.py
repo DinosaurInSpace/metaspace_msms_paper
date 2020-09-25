@@ -6,7 +6,7 @@ import pandas as pd
 from numba import njit
 from pyimzml.ImzMLParser import ImzMLParser
 
-from msms_scoring.datasets import dataset_aliases2
+from msms_scoring.datasets import dataset_aliases
 
 
 def merge_spectra(spectra):
@@ -118,7 +118,7 @@ def subtract_bg(mzs, ints, bg_mzs, bg_ints, min_hits, min_int_increase=1.5, max_
 
 def batch_run(ds_id, remove_background_signal=False):
     """remove_background_signal needs further development if we decide to use it"""
-    ds_name = dataset_aliases2.get(ds_id, ds_id)
+    ds_name = dataset_aliases.get(ds_id, ds_id)
     spots = get_ds_spots(ds_id)
     grid = pd.read_csv('spotting/msms_grid_mapping.csv', index_col=0)
     if remove_background_signal:
