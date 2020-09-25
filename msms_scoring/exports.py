@@ -9,6 +9,7 @@ import pandas as pd
 from metaspace_msms_mirror_spectra import mirror_main
 from msms_scoring.fetch_data import DSResults, get_msms_df
 from msms_scoring.metrics import get_ds_results, add_metric_scores
+from msms_scoring.metrics2 import DSResults2, get_ds_results2
 
 
 # %%
@@ -177,13 +178,23 @@ def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]
     print(f'Saved {out_file}')
 
 
-# %%
-# Export reports for all datasets
 def export_fragments(ds_id, prefix='raw data'):
     res = get_ds_results(ds_id)
     export_data = get_raw_export_data(res)
     export(export_data, f'./scoring_results/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
 
+
+def get_raw_export_data2(res: DSResults2):
+    return {
+        'MS MS annotations': res.msms_df.sort_values(['coloc_int_fdr']),
+        'Annotations': res.anns_df.sort_values(['mz']),
+    }
+
+
+def export_fragments2(ds_id, prefix='raw data'):
+    res = get_ds_results2(ds_id)
+    export_data = get_raw_export_data2(res)
+    export(export_data, f'./scoring_results/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
 # %%
 def plot_pseudo_ms_spectra(ds_ids):
     spectra_df = pd.read_pickle('./input/cm3_reference_spectra_df.pickle')
@@ -208,34 +219,36 @@ def plot_pseudo_ms_spectra(ds_ids):
 def export_mean_average_precision(ds_ids, filename, skip_mAP=False):
     PARAMS = ['unfiltered', 'no_off_sample', 'no_zero_coloc', 'no_structural_analogues', 'all_filters']
     DS_NAMES = []
-    # METRICS = ['random', 'inv_tfidf', 'global_enrich_uncorr', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'coloc_int_fdr']
     METRICS = ['random', 'coloc_fdr', 'coloc_int_fdr']
-    metric_scores = []
-    metric_counts = []
+    metrics_df = []
     for ds_id in ds_ids:
         ds = get_ds_results(ds_id)
         DS_NAMES.append(ds.name)
         for params in PARAMS:
             add_metric_scores(ds, params)
-            metric_scores.append(ds.metric_scores.assign(ds=ds.name, params=params))
-            metric_counts.append(pd.Series({**ds.metric_counts, 'ds': ds.name, 'params': params}))
+            metrics_df.append(ds.metric_scores.assign(ds=ds.name, params=params, **ds.metric_counts))
 
-    metric_scores = pd.concat(metric_scores, ignore_index=True)
-    metric_scores = metric_scores.set_index(['params','ds','metric']).reindex(product(PARAMS, DS_NAMES, METRICS)).reset_index()
-    metric_counts = pd.DataFrame(metric_counts)
-    metric_counts = metric_counts.set_index(['ds','params']).reindex(product(DS_NAMES, PARAMS))
-    mAP_stats = metric_scores.groupby(['params', 'metric']).avg_prec.describe().drop(columns=['count']).reindex(product(PARAMS, METRICS))
-    mAP_vs_random = mAP_stats.reset_index().groupby('params').apply(lambda df: df.assign(mean=df['mean'] / df['mean'][df.metric == 'random'].mean())).pivot(index='metric', columns='params', values='mean').reindex(METRICS).reindex(columns=PARAMS)
-    mAP_by_params = mAP_stats.reset_index().pivot(index='metric', columns='params', values='mean').reindex(METRICS).reindex(columns=PARAMS)
-    avg_prec = metric_scores.pivot_table(index=['params', 'metric'], columns='ds', values='avg_prec').reindex(index=product(PARAMS, METRICS), columns=DS_NAMES)
+    metrics_df = pd.concat(metrics_df, ignore_index=True)
+    metrics_df = metrics_df.set_index(['params', 'ds', 'metric']).reindex(product(PARAMS, DS_NAMES, METRICS)).reset_index()
+    metric_counts = metrics_df[['ds', 'params', 'n_expected', 'n_unexpected']].drop_duplicates()
+    metric_counts = metric_counts.set_index(['ds', 'params']).reindex(product(DS_NAMES, PARAMS))
+    mAP_stats = metrics_df.groupby(['params', 'metric']).avg_prec.describe().drop(columns=['count']).reindex(product(PARAMS, METRICS))
+    mAP_vs_random = mAP_stats.reset_index().groupby('params').apply(lambda df: df.assign(mean=df['mean'] / df['mean'][df.metric == 'random'].mean())).pivot(index='metric', columns='params', values='mean').reindex(index=METRICS, columns=PARAMS)
+    mAP_by_params = mAP_stats.reset_index().pivot(index='metric', columns='params', values='mean').reindex(index=METRICS, columns=PARAMS)
+    wmAP = metrics_df.groupby(['params', 'metric']).apply(lambda df: np.average(df.avg_prec, weights=df.n_expected)).reindex(product(PARAMS, METRICS))
+    wmAP = pd.DataFrame({'wmAP': wmAP}).reset_index()
+    wmAP_by_params = wmAP.pivot(index='metric', columns='params', values='wmAP').reindex(index=METRICS, columns=PARAMS)
+
+    avg_prec = metrics_df.pivot_table(index=['params', 'metric'], columns='ds', values='avg_prec').reindex(index=product(PARAMS, METRICS), columns=DS_NAMES)
 
     export({
-        'Mean avg prec vs random': mAP_vs_random if not skip_mAP else None,
-        'Mean avg prec': mAP_by_params if not skip_mAP else None,
+        'Weighted mAP': wmAP_by_params,
+        'mAP vs random': mAP_vs_random if not skip_mAP else None,
+        'mAP': mAP_by_params if not skip_mAP else None,
         'Filter stats': metric_counts,
         'Avg precision': avg_prec,
-        'Mean avg prec stats': mAP_stats,
-        'Raw data': metric_scores.set_index(['params','ds','metric']),
+        'mAP stats': mAP_stats,
+        'Raw data': metrics_df.set_index(['params','ds','metric']),
     }, filename)
 # %% Report mean-average-precision with & without an m/z range filter
 def export_mean_average_precision_with_range_filter(ds_ids):
@@ -303,6 +316,38 @@ def export_mean_average_precision_with_range_filter(ds_ids):
         'Mean avg prec stats': mAP_stats,
         # 'Raw data': metric_scores.set_index(['params','ds','metric']),
     }, 'scoring_results/metric_scores_clipped.xlsx', grouped_sheets=True)
+
+# %% Report mean-average-precision for each metric
+def export_mean_average_precision2(ds_ids, filename, skip_mAP=False):
+    DS_NAMES = []
+    METRICS = ['random', 'coloc_int_fdr']
+    metrics_df = []
+    metric_counts_cols = []
+    for ds_id in ds_ids:
+        ds = get_ds_results2(ds_id)
+        DS_NAMES.append(ds.name)
+        metric_counts_cols = list(ds.metric_counts.keys())
+        metrics_df.append(ds.metric_scores.assign(ds=ds.name, **ds.metric_counts))
+
+    metrics_df = pd.concat(metrics_df, ignore_index=True)
+    metrics_df = metrics_df.set_index(['ds', 'metric']).reindex(product(DS_NAMES, METRICS)).reset_index()
+    metric_counts = metrics_df[['ds', *metric_counts_cols]].drop_duplicates('ds')
+    metric_counts = metric_counts.set_index(['ds']).reindex(DS_NAMES)
+    mAP_stats = metrics_df.groupby(['metric']).avg_prec.describe().drop(columns=['count']).reindex(METRICS)
+    wmAP = metrics_df.groupby(['metric']).apply(lambda df: np.average(df.avg_prec, weights=df.n_expected)).reindex(METRICS)
+    wmAP = pd.DataFrame({
+        'weighted mAP': wmAP,
+        'raw mAP': mAP_stats['mean'],
+    })
+    wmAP.loc['coloc_int_fdr / random'] = wmAP.loc['coloc_int_fdr'] / wmAP.loc['random']
+    avg_prec = metrics_df.pivot_table(index='ds', columns='metric', values='avg_prec').reindex(index=DS_NAMES, columns=METRICS)
+
+    export({
+        'mAP': wmAP,
+        'Annotation counts': metric_counts,
+        'Avg precision': avg_prec,
+        'Raw data': metrics_df.set_index(['ds','metric']),
+    }, filename)
 # %%
 
 def export_molecule_well_behavedness(ds_ids, hmdb_ids):
@@ -379,7 +424,6 @@ def export_top_molecules(ds_ids, output_name):
 
 # %%
 
-
 def export_mols_for_chemrich(ds_id):
     res = get_ds_results(ds_id)
     df = res.mols_df[['mol_name','inchikey','pubchem_cid','smiles','coloc_int_fdr','coloc_int_fc']]
@@ -399,8 +443,6 @@ def export_mols_for_chemrich(ds_id):
     export({
         'Sheet1': (df, {'index': False}),
     }, f'scoring_results/chemrich/{res.name} half-p-value double-foldchange/input data.xlsx', grouped_sheets=False)
-
-
 
 
 def export_mols_for_chemrich_summarization(ds_ids, output_name):

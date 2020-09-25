@@ -1,5 +1,8 @@
 # pip install numpy pandas scipy sklearn enrichmentanalysis-dvklopfenstein metaspace2020
-from functools import lru_cache
+import pickle
+from concurrent.futures.process import ProcessPoolExecutor
+from itertools import repeat
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -13,13 +16,6 @@ from msms_scoring.fetch_data import DSResults, get_msms_results_for_ds
 
 
 #%%
-# Wider maximum width of pandas columns (needed to see the full lists of molecules)
-
-pd.set_option('max_colwidth', 1000)
-pd.set_option('display.max_rows', 50)
-pd.set_option('display.max_columns', 20)
-pd.set_option('display.width', 1000)
-#%%
 def add_expected_mols(res: DSResults):
     expected_mol_ids = dataset_mol_lists.get(res.ds_id, set())
     res.mols_df['is_expected'] = res.mols_df.index.isin(expected_mol_ids)
@@ -31,7 +27,8 @@ def add_expected_mols(res: DSResults):
 
     is_redundant = (
         res.mols_df
-        .sort_values(['is_expected'], ascending=False)
+        .sort_index()
+        .sort_values(['is_expected'], ascending=False, kind='mergesort')
         .duplicated('all_frag_formulas')
         .rename('is_redundant')
     )
@@ -222,33 +219,46 @@ def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
     return target_fdrs
 
 def add_fdr(res: DSResults):
-    global results
     def coloc_int_score(parent, frags):
         ints = res.anns_df.intensity
         max_int = ints[parent] if parent in ints else 0
         return sum(res.get_coloc(parent, f) for f in frags if f in ints.index and max_int > ints[f])
+
     def coloc_score(parent, frags):
         return sum(res.get_coloc(parent, f) for f in frags)
 
-    def get_decoy(alg_func, n_frags):
-        parent = np.random.choice(res.anns_df.index)
-        frags = np.random.choice(all_formulas, n_frags-1, replace=False) if n_frags > 1 else []
-        return alg_func(parent, frags)
+    def get_decoy_scores(alg, n_decoys, max_n_frags):
+        result = np.zeros((max_n_frags+1, n_decoys), 'f')
+        parents = np.random.choice(valid_parent_formulas, n_decoys)
+        ints = res.anns_df.intensity
+        for i, parent in enumerate(parents):
+            max_int = res.anns_df.intensity.get(parent, 0)
+            if max_int > 0 and max_n_frags > 1:
+                frags = np.random.choice(valid_frag_formulas, max_n_frags - 1, replace=False)
+                if alg == 'coloc_int':
+                    result[2:, i] = np.cumsum([res.get_coloc(parent, f) if f in ints.index and max_int > ints[f] else 0 for f in frags])
+                elif alg == 'coloc':
+                    result[2:, i] = np.cumsum([res.get_coloc(parent, f) if f in ints.index else 0 for f in frags])
+                else:
+                    assert False, 'invalid alg'
 
-    all_formulas = np.array(res.ann_mols_df.formula.unique())
-    n_decoys = 1000
+        return result
+
+    valid_frag_formulas = np.unique(res.ann_mols_df.formula)
+    valid_parent_formulas = res.anns_df.index
     results = {}
-    # ('msm_coloc', msm_coloc_score), ('msm_x_coloc', msm_x_coloc_score)
     for alg, alg_func in [('coloc', coloc_score), ('coloc_int', coloc_int_score)]:
+        all_decoy_scores = get_decoy_scores(
+            alg, n_decoys=1000, max_n_frags=res.ann_mols_df.parent_n_frags.max()
+        )
         alg_scores = []
         alg_results = []
         for n_frags, grp in res.ann_mols_df.groupby('parent_n_frags'):
-            decoy_scores = [get_decoy(alg_func, n_frags) for n in range(n_decoys)]
+            decoy_scores = all_decoy_scores[n_frags, :]
             target_scores = grp.sort_values('is_parent', ascending=False).groupby('hmdb_id').formula.apply(lambda fs: alg_func(fs.values[0], fs.values[1:]))
 
             alg_scores.append(target_scores)
             alg_results.append(get_fdr(decoy_scores, target_scores))
-            # print(f'{alg} {n_frags}: {len(grp)}, {np.mean(target_scores)}, {np.mean(decoy_scores)}')
         results[alg] = pd.concat(alg_scores)
         all_alg_results = pd.concat(alg_results)
         results[f'{alg}_fdr'] = all_alg_results.fdr
@@ -316,18 +326,30 @@ def add_filter_reason(res):
 
 # %%
 
-@lru_cache(maxsize=None)
-def get_ds_results(ds_id, mz_range=None):
-    res = get_msms_results_for_ds(ds_id, mz_range)
-    __import__('__main__').res = res
-    add_expected_mols(res)
-    # add_tfidf_score(res)
-    # add_enrichment_analysis(res)
-    # add_p_values(res)
-    add_fdr(res)
-    # add_metric_scores(res)
-    add_filter_reason(res)
+def get_ds_results(ds_id, mz_range=None, use_cache=True):
+    mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
+    cache_path = Path(f'./scoring_results/cache/ds_result_metrics/{ds_id}{mz_suffix}.pickle')
+    if not use_cache or not cache_path.exists():
+        res = get_msms_results_for_ds(ds_id, mz_range)
+        add_expected_mols(res)
+        # add_tfidf_score(res)
+        # add_enrichment_analysis(res)
+        # add_p_values(res)
+        add_fdr(res)
+        # add_metric_scores(res)
+        add_filter_reason(res)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        pickle.dump(res, cache_path.open('wb'))
+
+    res = pickle.load(cache_path.open('rb'))
     return res
 
+
+#%%
+
+def get_many_ds_results(ds_ids, mz_range=None, use_cache=True):
+    with ProcessPoolExecutor() as p:
+        for res in p.map(get_ds_results, ds_ids, repeat(mz_range), repeat(use_cache)):
+            yield res
 
 #%%

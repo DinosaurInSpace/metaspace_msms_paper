@@ -1,5 +1,7 @@
 import pandas as pd
 
+datasets_df = pd.read_csv('input/datasets.csv')
+
 # List of METASPACE IDs of datasets that have been processed with a fragmentation database
 dataset_ids = [
     '2020-08-03_13h23m33s',

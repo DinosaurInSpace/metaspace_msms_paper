@@ -15,8 +15,6 @@ import cpyMSpec
 #%%
 from msms_scoring.datasets import dataset_aliases, dataset_mol_lists
 
-sm = SMInstance()
-
 def make_id_mapping_df():
     """
     Saved code for generating `id_mapping.csv` needed for get_msms_df. Has some manual steps, so don't run this directly
@@ -96,12 +94,31 @@ def get_msms_df(use_latest_db=True):
     # hmdb_lipid_ids.txt is derived from the HMDB 4.0 export, and includes the IDs of all molecules
     # with the super-class "Lipids and lipid-like molecules", or starting with "PC(", which are
     # also present in core_metabolome_v3
-    lipid_ids = set(hmdb_id for hmdb_id in open('hmdb_lipid_ids.txt').read().split('\n') if hmdb_id)
+    lipid_ids = set(hmdb_id for hmdb_id in open('input/hmdb_lipid_ids.txt').read().split('\n') if hmdb_id)
     msms_df['is_lipid'] = msms_df.hmdb_id.isin(lipid_ids)
     # Add PubChem CIDs, SMILESs, InChIKeys, if the mapping has been generated
-    if Path('to_metaspace/id_mapping.csv').exists():
-        id_mapping = pd.read_csv('to_metaspace/id_mapping.csv', index_col=0)
+    if Path('input/id_mapping.csv').exists():
+        id_mapping = pd.read_csv('input/id_mapping.csv', index_col=0)
         msms_df = msms_df.merge(id_mapping, left_on='hmdb_id', right_index=True, how='left')
+
+    # Integrate names for lower structural resolution of lipids
+    # Data from https://www.lipidmaps.org/tools/structuredrawing/lipid_levels.php
+    if Path('input/lipid_structural_level_names.tsv').exists():
+        print('adding lipid data')
+        lipid_mapping = (
+            pd.read_csv('input/lipid_structural_level_names.tsv', delimiter='\t')
+            .rename(columns={
+                'Input name': 'mol_name',
+                'sn-position level': 'lipid_sn_name',
+                'Species level': 'lipid_s_name'
+            })
+            [['mol_name', 'lipid_sn_name', 'lipid_s_name']]
+            [lambda df: df.lipid_s_name != '']
+        )
+        msms_df = msms_df.merge(lipid_mapping, on='mol_name', how='left')
+    else:
+        print('missing lipid data')
+
     # Add sorted list of fragments for later deduping
     all_frags = msms_df.groupby(['hmdb_id', 'polarity']).formula.apply(lambda fs: ','.join(sorted(fs))).rename('all_frag_formulas')
     msms_df = msms_df.merge(
@@ -132,8 +149,6 @@ class DSResults:
     ann_mols_df: pd.DataFrame
     anns_df: pd.DataFrame
     metric_scores: pd.DataFrame
-    mols_meta: pd.DataFrame
-    anns_meta: pd.DataFrame
 
     def get_coloc(self, f1, f2):
         if f1 == f2:
@@ -147,6 +162,7 @@ def fetch_ds_results(ds_id):
     print(f'fetch_ds_results({ds_id})')
     res = DSResults()
     res.ds_id = ds_id
+    sm = SMInstance()
     res.sm_ds = sm.dataset(id=ds_id)
     res.db_id = [db['id'] for db in res.sm_ds.database_details if re.match(r'^\d|^ls_cm3_msms_all_', db['name'])][0]
     if ds_id in dataset_aliases:
@@ -277,6 +293,7 @@ def get_msms_results_for_ds(ds_id, mz_range=None, use_cache=True):
     mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
     cache_path = Path(f'./scoring_results/cache/ds_results/{ds_id}{mz_suffix}.pickle')
     if not use_cache or not cache_path.exists():
+        print(f'get_msms_results_for_ds({ds_id})')
         res = fetch_ds_results(ds_id)
         if mz_range is not None:
             res.name = f'{res.name} ({mz_range[0]}-{mz_range[1]})'
@@ -287,8 +304,7 @@ def get_msms_results_for_ds(ds_id, mz_range=None, use_cache=True):
         res.ds_images = None  # Save memory/space as downstream analysis doesn't need this
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         pickle.dump(res, cache_path.open('wb'))
-    else:
-        res = pickle.load(cache_path.open('rb'))
+    res = pickle.load(cache_path.open('rb'))
     return res
 
 
