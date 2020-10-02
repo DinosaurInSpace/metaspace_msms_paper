@@ -1,7 +1,6 @@
-import json, time, ast
+import json
 import pandas as pd
 from metaspace.sm_annotation_utils import get_config, GraphQLClient
-# from metaspace.sm_annotation_utils import SMInstance
 from msms_scoring.datasets import dataset_ids
 
 # %% Make DB
@@ -9,6 +8,8 @@ from msms_scoring.datasets import dataset_ids
 for p in ['positive', 'negative']:
     (
         pd.concat([
+            pd.read_csv('to_metaspace/cm3_msms_all_pos_v4.csv', sep='\t').assign(polarity='positive'),
+            pd.read_csv('to_metaspace/cm3_msms_all_neg_v4.csv', sep='\t').assign(polarity='negative'),
             pd.read_csv('to_metaspace/cm3_msms_all_pos_v3.csv', sep='\t').assign(polarity='positive'),
             pd.read_csv('to_metaspace/cm3_msms_all_neg_v3.csv', sep='\t').assign(polarity='negative'),
             pd.read_csv('to_metaspace/cm3_msms_all_pos_v2.csv', sep='\t').assign(polarity='positive'),
@@ -18,8 +19,19 @@ for p in ['positive', 'negative']:
         [lambda df: df.polarity == p]
         [['id', 'name', 'formula']]
             .drop_duplicates()
-            .to_csv(f'to_metaspace/ls_cm3_msms_all_{p[:3]}_v3.csv', sep='\t', index=False)
+            .to_csv(f'to_metaspace/ls_cm3_msms_all_{p[:3]}_v4.csv', sep='\t', index=False)
     )
+
+# %%
+
+# Compare versions for QC
+[
+    pd.read_csv(f'to_metaspace/cm3_msms_all_{pv}.csv', sep='\t', index_col=0)
+    [['name','formula']]
+    .sort_values('name')
+    .to_csv(f'to_metaspace/{pv}_sorted.csv', index=False)
+    for pv in ['pos_v2','pos_v3','pos_v4','neg_v2','neg_v3','neg_v4',]
+]
 
 #%% Reprocess DSs
 
@@ -53,8 +65,8 @@ def update_db(ds_id_in):
     is_pos = metadata['MS_Analysis']['Polarity'] == 'Positive'
     new_dbs = list(
         set(ds['molDBs'])
-        .difference(['ls_cm3_msms_all_pos_v2', 'ls_cm3_msms_all_neg_v2'])
-        .union({'ls_cm3_msms_all_pos_v3'} if is_pos else {'ls_cm3_msms_all_neg_v3'})
+        .difference(['ls_cm3_msms_all_pos_v3', 'ls_cm3_msms_all_neg_v3'])
+        .union({'ls_cm3_msms_all_pos_v4'} if is_pos else {'ls_cm3_msms_all_neg_v4'})
     )
     new_adducts = ['[M]+'] if is_pos else ['[M]-']
     assert ds['adducts'] == ['[M]+'] or ds['adducts'] == ['[M]-'], (ds['id'], is_pos, ds['adducts'], new_adducts, ds['name'])

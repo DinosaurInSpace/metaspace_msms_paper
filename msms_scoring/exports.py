@@ -1,7 +1,8 @@
 # pip install numpy pandas scipy sklearn enrichmentanalysis-dvklopfenstein metaspace2020
+import warnings
 from itertools import product
 from pathlib import Path
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Tuple, List
 
 import numpy as np
 import pandas as pd
@@ -9,10 +10,12 @@ import pandas as pd
 from metaspace_msms_mirror_spectra import mirror_main
 from msms_scoring.fetch_data import DSResults, get_msms_df
 from msms_scoring.metrics import get_ds_results, add_metric_scores
-from msms_scoring.metrics2 import DSResults2, get_ds_results2
 
 
 # %%
+from msms_scoring.metrics2 import get_ds_results2
+
+
 def find_interesting_groups(res: DSResults):
     # Build lookup of parent scores, indexed by fragment formulas
     df = res.ann_mols_df[res.ann_mols_df.is_detected].set_index('hmdb_id').drop(columns=['is_detected'])
@@ -92,11 +95,16 @@ def find_interesting_groups(res: DSResults):
 # %%
 
 def get_raw_export_data(res: DSResults):
+    mols = res.mols_df.sort_values(['coloc_int_fdr'])
     return {
-        'Mols': res.mols_df.sort_values(['coloc_int_fdr']),
+        'Mols': mols[[
+            'mz', 'mol_name', 'formula', 'is_expected', 'parent_n_detected', 'parent_n_frags',
+            'coloc_int', 'coloc_int_fdr', 'is_lipid', 'filter_reason', 'mol_href'
+        ]],
+        'Mols (full)': mols,
         'Mols by annotation': res.ann_mols_df.set_index(['formula', 'hmdb_id']).sort_values(['formula', 'coloc_int_fdr']),
-        'Annotations by mol': res.ann_mols_df.set_index(['hmdb_id', 'formula']).sort_values(['coloc_int_fdr', 'mz']),
-        'Annotations': res.anns_df.sort_values(['mz']),
+        'Annotations by mol': res.ann_mols_df.set_index(['hmdb_id', 'formula']).sort_values(['hmdb_id', 'mz']),
+        # 'Annotations': res.anns_df.sort_values(['mz']),
     }
 
 
@@ -121,7 +129,9 @@ COLUMN_SCALES = {
     'feature_n': None,
     'parent_num_features': None,
 }
-def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]], out_file: str, grouped_sheets=True):
+
+
+def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]], out_file: str, grouped_sheets=False):
     drop_cols = [
         'inv_tfidf', 'tfidf', 'global_enrich_p', 'global_enrich_uncorr', 'group_enrich_p', 'group_enrich_uncorr',
         'p_value_20','p_value_50','p_value_80',
@@ -143,7 +153,10 @@ def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]
             df.to_excel(writer, index=index, header=header, freeze_panes=(header_rows, index_cols), merge_cells=not autofilter, **kwargs)
 
             worksheet = writer.book.worksheets()[-1]
-            indexes = [(name or i, df.index.get_level_values(i).dtype, df.index.get_level_values(i)) for i, name in enumerate(df.index.names)]
+            if index:
+                indexes = [(name or i, df.index.get_level_values(i).dtype, df.index.get_level_values(i)) for i, name in enumerate(df.index.names)]
+            else:
+                indexes = []
             columns = [(name, df.dtypes[name], df[name]) for name in df.columns]
             for col_i, (name, dtype, values) in enumerate([*indexes, *columns]):
                 if np.issubdtype(dtype.type, np.number):
@@ -162,39 +175,50 @@ def export(export_data: Dict[str, Union[pd.DataFrame, Tuple[pd.DataFrame, dict]]
                 worksheet.autofilter(0, 0, header_rows + len(df.index) - 1, index_cols + len(df.columns) - 1)
 
     Path(out_file).parent.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(out_file, engine='xlsxwriter') as writer:
-        for sheet_name, data in export_data.items():
-            if isinstance(data, tuple):
-                data, sheet_options = data
-            else:
-                sheet_options = {}
-            if data is not None:
-                if grouped_sheets is not True:
-                    to_excel_colorize(writer, data, sheet_options, sheet_name=sheet_name)
-                if data.index.nlevels > 1 or grouped_sheets is not False:
-                    sn = sheet_name if grouped_sheets is True else sheet_name + ' (grouped)'
-                    to_excel_colorize(writer, data, sheet_options, autofilter=False, sheet_name=sn)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', ".*Ignoring URL .* since it exceeds Excel's limit of .*")
+        with pd.ExcelWriter(out_file, engine='xlsxwriter') as writer:
+            for sheet_name, data in export_data.items():
+                if isinstance(data, tuple):
+                    data, sheet_options = data
+                else:
+                    sheet_options = {}
+                if data is not None:
+                    if grouped_sheets is None:
+                        to_excel_colorize(writer, data, sheet_options, autofilter=True, sheet_name=sheet_name)
+                        if data.index.nlevels > 1:
+                            sn = sheet_name if grouped_sheets is True else sheet_name + ' (grouped)'
+                            to_excel_colorize(writer, data, sheet_options, autofilter=False, sheet_name=sn)
+                    else:
+                        to_excel_colorize(writer, data, sheet_options, autofilter=not grouped_sheets, sheet_name=sheet_name)
 
     print(f'Saved {out_file}')
 
 
-def export_fragments(ds_id, prefix='raw data'):
-    res = get_ds_results(ds_id)
+def export_fragments(ds_id: Union[DSResults, str], prefix='raw data'):
+    res = get_ds_results(ds_id) if isinstance(ds_id, str) else ds_id
     export_data = get_raw_export_data(res)
     export(export_data, f'./scoring_results/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
 
 
-def get_raw_export_data2(res: DSResults2):
+def get_raw_export_data2(res: DSResults):
+    full_msms = res.msms_df.sort_values(['coloc_int_fdr']).drop(columns='hmdb_id')
     return {
-        'MS MS annotations': res.msms_df.sort_values(['coloc_int_fdr']),
+        'MS MS annotations': full_msms[[
+            'mz', 'mol_name', 'parent_formula', 'is_expected', 'off_sample',
+            'parent_n_detected', 'parent_n_frags', 'coloc_int', 'coloc_int_fdr', 'mol_href'
+        ]],
+        'MS MS annotations (full)': full_msms,
         'Annotations': res.anns_df.sort_values(['mz']),
     }
 
 
-def export_fragments2(ds_id, prefix='raw data'):
-    res = get_ds_results2(ds_id)
+def export_fragments2(ds_id: Union[DSResults, str], prefix='raw data'):
+    res = get_ds_results2(ds_id) if isinstance(ds_id, str) else ds_id
     export_data = get_raw_export_data2(res)
-    export(export_data, f'./scoring_results/{prefix}_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
+    export(export_data, f'./scoring_results/{prefix}_r2_{res.ds_id}_{res.name}.xlsx', grouped_sheets=False)
+
+
 # %%
 def plot_pseudo_ms_spectra(ds_ids):
     spectra_df = pd.read_pickle('./input/cm3_reference_spectra_df.pickle')
@@ -216,13 +240,13 @@ def plot_pseudo_ms_spectra(ds_ids):
             )
 
 # %% Report mean-average-precision for each metric
-def export_mean_average_precision(ds_ids, filename, skip_mAP=False):
-    PARAMS = ['unfiltered', 'no_off_sample', 'no_zero_coloc', 'no_structural_analogues', 'all_filters']
+def export_mean_average_precision(ds_ids: List[Union[DSResults, str]], name, skip_mAP=False):
+    PARAMS = ['selected']
     DS_NAMES = []
-    METRICS = ['random', 'coloc_fdr', 'coloc_int_fdr']
+    METRICS = ['random', 'coloc_int_fdr']
     metrics_df = []
     for ds_id in ds_ids:
-        ds = get_ds_results(ds_id)
+        ds = get_ds_results(ds_id) if isinstance(ds_id, str) else ds_id
         DS_NAMES.append(ds.name)
         for params in PARAMS:
             add_metric_scores(ds, params)
@@ -249,7 +273,7 @@ def export_mean_average_precision(ds_ids, filename, skip_mAP=False):
         'Avg precision': avg_prec,
         'mAP stats': mAP_stats,
         'Raw data': metrics_df.set_index(['params','ds','metric']),
-    }, filename)
+    }, f'./scoring_results/{name}_metric_results.xlsx')
 # %% Report mean-average-precision with & without an m/z range filter
 def export_mean_average_precision_with_range_filter(ds_ids):
     PARAMS = ['unfiltered', 'no_off_sample', 'no_zero_coloc', 'no_structural_analogues', 'all_filters']
@@ -318,21 +342,28 @@ def export_mean_average_precision_with_range_filter(ds_ids):
     }, 'scoring_results/metric_scores_clipped.xlsx', grouped_sheets=True)
 
 # %% Report mean-average-precision for each metric
-def export_mean_average_precision2(ds_ids, filename, skip_mAP=False):
+def export_mean_average_precision2(ds_ids: List[Union[DSResults, str]], name: str):
     DS_NAMES = []
     METRICS = ['random', 'coloc_int_fdr']
     metrics_df = []
-    metric_counts_cols = []
+    metric_counts = []
     for ds_id in ds_ids:
-        ds = get_ds_results2(ds_id)
+        ds = get_ds_results2(ds_id) if isinstance(ds_id, str) else ds_id
         DS_NAMES.append(ds.name)
-        metric_counts_cols = list(ds.metric_counts.keys())
-        metrics_df.append(ds.metric_scores.assign(ds=ds.name, **ds.metric_counts))
+        ds_df = ds.msms_df
+        n_expected = np.count_nonzero(ds_df[lambda df: df.is_expected & ~df.off_sample])
+        metrics_df.append(ds.metric_scores.assign(ds=ds.name, n_expected=n_expected))
+        metric_counts.append({
+            'ds': ds.name,
+            'off_sample_expected': np.count_nonzero(ds_df.is_expected & ds_df.off_sample),
+            'off_sample_unexpected': np.count_nonzero(~ds_df.is_expected & ds_df.off_sample),
+            'on_sample_expected': np.count_nonzero(ds_df.is_expected & ~ds_df.off_sample),
+            'on_sample_unexpected': np.count_nonzero(~ds_df.is_expected & ~ds_df.off_sample),
+        })
 
     metrics_df = pd.concat(metrics_df, ignore_index=True)
     metrics_df = metrics_df.set_index(['ds', 'metric']).reindex(product(DS_NAMES, METRICS)).reset_index()
-    metric_counts = metrics_df[['ds', *metric_counts_cols]].drop_duplicates('ds')
-    metric_counts = metric_counts.set_index(['ds']).reindex(DS_NAMES)
+    metric_counts = pd.DataFrame(metric_counts).set_index(['ds']).reindex(DS_NAMES)
     mAP_stats = metrics_df.groupby(['metric']).avg_prec.describe().drop(columns=['count']).reindex(METRICS)
     wmAP = metrics_df.groupby(['metric']).apply(lambda df: np.average(df.avg_prec, weights=df.n_expected)).reindex(METRICS)
     wmAP = pd.DataFrame({
@@ -347,7 +378,7 @@ def export_mean_average_precision2(ds_ids, filename, skip_mAP=False):
         'Annotation counts': metric_counts,
         'Avg precision': avg_prec,
         'Raw data': metrics_df.set_index(['ds','metric']),
-    }, filename)
+    }, f'./scoring_results/{name}_r2_metric_results.xlsx')
 # %%
 
 def export_molecule_well_behavedness(ds_ids, hmdb_ids):
@@ -388,31 +419,34 @@ def export_molecule_well_behavedness(ds_ids, hmdb_ids):
 # %%
 
 def export_top_molecules(ds_ids, output_name):
-    # msms_df = get_msms_df()
     results_dfs = []
     for ds_id in ds_ids:
-        res = get_ds_results(ds_id)
-        results_dfs.append(res.mols_df.assign(ds_name=res.name))
+        res = get_ds_results2(ds_id) if isinstance(ds_id, str) else ds_id
+        results_dfs.append(res.msms_df.assign(ds_name=res.name))
     results_df = pd.concat(results_dfs)
     grp_fdr = results_df.groupby('ds_name').coloc_int_fdr
     ds_stats = pd.DataFrame({
-        f'FDR <= {i*100}': grp_fdr.apply(lambda s: np.count_nonzero(s <= i))
-        for i in [0.05,0.1,0.2,0.5,1.0,1000]
+        **{
+            f'FDR <= {i*100}': grp_fdr.apply(lambda s: np.count_nonzero(s <= i))
+            for i in [0.05,0.1,0.2,0.5]
+        },
+        'FDR < 100%': grp_fdr.apply(lambda s: np.count_nonzero(s < 1)),
+        'FDR incalculable - no fragments': grp_fdr.apply(lambda s: np.count_nonzero(s >= 1)),
     })
 
     fdr_10 = (
-        results_df[(results_df.coloc_int_fdr <= 0.1) & (results_df.filter_reason == '')]
+        results_df[(results_df.coloc_int_fdr <= 0.1)]
         .sort_values('coloc_int_fdr')
-        .reset_index()
+        .reset_index(drop=True)
         .set_index(['ds_name', 'hmdb_id'])
     )
     summary = (
         fdr_10
         .reset_index()
         .groupby('hmdb_id')
-        .agg({'ds_name': 'count', 'mol_name': 'max', 'coloc_int_fdr': 'mean'})
-        .rename(columns={'ds_name': 'detections', 'coloc_int_fdr': 'mean_coloc_int_fdr'})
-        .sort_values('mean_coloc_int_fdr')
+        .agg({'ds_name': 'count', 'mol_name': 'max', 'coloc_int_fdr': 'min'})
+        .rename(columns={'ds_name': 'detections', 'coloc_int_fdr': 'min_coloc_int_fdr'})
+        .sort_values('min_coloc_int_fdr')
         .sort_values('detections', ascending=False, kind='mergesort')
     )
 

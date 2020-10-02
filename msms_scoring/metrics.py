@@ -8,19 +8,12 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
 from scipy.stats import fisher_exact
-from sklearn.feature_extraction.text import TfidfTransformer
-from enrichmentanalysis.enrich_run import EnrichmentRun
 
-from msms_scoring.datasets import dataset_mol_lists
 from msms_scoring.fetch_data import DSResults, get_msms_results_for_ds
 
 
 #%%
 def add_expected_mols(res: DSResults):
-    expected_mol_ids = dataset_mol_lists.get(res.ds_id, set())
-    res.mols_df['is_expected'] = res.mols_df.index.isin(expected_mol_ids)
-    res.ann_mols_df['is_expected'] = res.ann_mols_df.hmdb_id.isin(expected_mol_ids)
-
     expected_formulas = set(res.mols_df[res.mols_df.is_expected].formula)
     res.mols_df['is_expected_isomer'] = res.mols_df.formula.isin(expected_formulas) & ~res.mols_df.is_expected
     res.ann_mols_df['is_expected_isomer'] = res.ann_mols_df.parent_formula.isin(expected_formulas) & ~res.ann_mols_df.is_expected
@@ -36,12 +29,7 @@ def add_expected_mols(res: DSResults):
     res.ann_mols_df = res.ann_mols_df.merge(is_redundant, how='left', left_on='hmdb_id', right_index=True)
 
 
-if __name__ == '__main__':
-    test_results = get_msms_results_for_ds('2020-06-19_16h39m10s')
-    add_expected_mols(test_results)
-    df = test_results.mols_df
 #%%
-
 def add_tfidf_score(res: DSResults):
     """
     TF-IDF where:
@@ -53,6 +41,7 @@ def add_tfidf_score(res: DSResults):
     Caveats:
     * The output value is just summed per document to produce a score. May not be optimal.
     """
+    from sklearn.feature_extraction.text import TfidfTransformer
     terms_df = (
         res.ann_mols_df
         # [lambda df: ~df.is_parent]
@@ -76,10 +65,7 @@ def add_tfidf_score(res: DSResults):
     res.ann_mols_df = res.ann_mols_df.merge(tfidf_s, left_on='hmdb_id', right_index=True)
 
 
-if __name__ == '__main__':
-    add_tfidf_score(test_results)
 #%%
-
 def add_enrichment_analysis(res: DSResults):
     """
     Over-representation analysis where:
@@ -94,6 +80,7 @@ def add_enrichment_analysis(res: DSResults):
       possibility that the observed fragment distribution was due to random chance.
     """
 
+    from enrichmentanalysis.enrich_run import EnrichmentRun
     def enrich(df, prefix=''):
         population = set(df.formula.unique())
         study_ids = set(df[df.is_detected].formula.unique())
@@ -141,8 +128,6 @@ def add_enrichment_analysis(res: DSResults):
     )
 
 
-if __name__ == '__main__':
-    add_enrichment_analysis(test_results)
 #%%
 def calc_pvalue(study_count, study_n, pop_count, pop_n):
     """Calculate uncorrected p-values."""
@@ -183,9 +168,6 @@ def add_p_values(res: DSResults):
     res.ann_mols_df = res.ann_mols_df.merge(pvals_df, how='left', left_on='hmdb_id', right_index=True)
     res.mols_df = res.mols_df.merge(pvals_df, how='left', left_on='hmdb_id', right_index=True)
 
-if __name__ == '__main__':
-    add_p_values(test_results)
-    df = test_results.mols_df.sort_values(['is_expected', 'p_value_80'])
 #%%
 
 def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
@@ -217,6 +199,7 @@ def get_fdr(decoy_scores, target_scores, rule_of_succession=True):
         target_fdrs['fold_change'] = 1
 
     return target_fdrs
+
 
 def add_fdr(res: DSResults):
     def coloc_int_score(parent, frags):
@@ -270,9 +253,6 @@ def add_fdr(res: DSResults):
     res.mols_df.drop(columns=fdrs_df.columns, errors='ignore', inplace=True)
     res.mols_df = res.mols_df.join(fdrs_df, how='left')
 
-if __name__ == '__main__':
-    add_fdr(test_results)
-    df = test_results.mols_df.sort_values(['is_expected', 'coloc_fdr']).drop(columns=['parent_n_frags_unfiltered','ann_href','mol_href'], errors='ignore')
 # %%
 
 def average_precision(s):
@@ -283,10 +263,10 @@ def add_metric_scores(res: DSResults, params: str = 'unfiltered', min_mz=None):
     scores = []
     df = res.mols_df.sort_values('is_expected')
 
-    assert params in ("unfiltered", "no_off_sample", "no_zero_coloc", "no_structural_analogues", "all_filters")
+    assert params in ("unfiltered", "no_off_sample", "no_zero_coloc", "no_structural_analogues", "all_filters", "selected")
     if min_mz is not None:
         df = df[df.mz > min_mz]
-    if params == 'all_filters' or params == 'no_off_sample':
+    if params == 'all_filters' or params == 'no_off_sample' or params == "selected":
         df = df[~df.off_sample.astype(np.bool)]
     if params == 'all_filters' or params == 'no_zero_coloc':
         if min_mz is not None:
@@ -299,7 +279,7 @@ def add_metric_scores(res: DSResults, params: str = 'unfiltered', min_mz=None):
         else:
             df = df[df.coloc > 0]
 
-    if params == 'all_filters' or params == 'no_structural_analogues':
+    if params == 'all_filters' or params == 'no_structural_analogues' or params == "selected":
         df = df[~df.is_redundant]
 
     for m in ['random', 'inv_tfidf', 'global_enrich_uncorr', 'p_value_20', 'p_value_50', 'p_value_80', 'coloc_fdr', 'coloc_int_fdr']:
@@ -326,11 +306,23 @@ def add_filter_reason(res):
 
 # %%
 
-def get_ds_results(ds_id, mz_range=None, use_cache=True):
-    mz_suffix = f'_{mz_range[0]}-{mz_range[1]}' if mz_range is not None else ''
-    cache_path = Path(f'./scoring_results/cache/ds_result_metrics/{ds_id}{mz_suffix}.pickle')
+def get_ds_results(ds_id, mz_range=None, db_ver=None, include_lone_isotopic_peaks=False, use_cache=True) -> DSResults:
+    cache_name_parts = [
+        ds_id,
+        mz_range and f'{mz_range[0]}-{mz_range[1]}',
+        db_ver,
+        include_lone_isotopic_peaks and 'oneiso',
+    ]
+    cache_name = '_'.join(part for part in cache_name_parts if part)
+    cache_path = Path(f'./scoring_results/cache/ds_result_metrics/{cache_name}.pickle')
     if not use_cache or not cache_path.exists():
-        res = get_msms_results_for_ds(ds_id, mz_range)
+        res = get_msms_results_for_ds(
+            ds_id,
+            mz_range=mz_range,
+            db_ver=db_ver,
+            include_lone_isotopic_peaks=include_lone_isotopic_peaks,
+            use_cache=use_cache
+        )
         add_expected_mols(res)
         # add_tfidf_score(res)
         # add_enrichment_analysis(res)
@@ -347,9 +339,12 @@ def get_ds_results(ds_id, mz_range=None, use_cache=True):
 
 #%%
 
-def get_many_ds_results(ds_ids, mz_range=None, use_cache=True):
+def _get_ds_results_kwargs(ds_id, kwargs):
+    return get_ds_results(ds_id, **kwargs)
+
+
+def get_many_ds_results(ds_ids, **kwargs):
     with ProcessPoolExecutor() as p:
-        for res in p.map(get_ds_results, ds_ids, repeat(mz_range), repeat(use_cache)):
-            yield res
+        return list(p.map(_get_ds_results_kwargs, ds_ids, repeat(kwargs)))
 
 #%%
