@@ -1,0 +1,119 @@
+set,ds_id,prod_ds_id,raw_name,name,polarity,min_mz,max_mz,matrix,analyzer,organism,part
+spotting,2020-08-03_13h23m33s,2020-08-03_08h05m09s,2020-08-02_ME_SlideA_DHB_Pos_MS1_RF50_100-800_30at_200umss_100x205,DHB Pos MS1,positive,100,759,DHB,Orbitrap,,
+spotting,2020-08-03_19h56m47s,2020-08-03_19h30m50s,2020-08-03_ME_SlideA_DHB_Pos_AIF_10eV_ISCID_RF100_100-800_30at_200umss_100x205,DHB Pos AIF,positive,100,761,DHB,Orbitrap,,
+spotting,2020-08-04_14h06m33s,2020-08-04_01h47m02s,2020-08-03_ME_SlideA_DHB_Neg_MS1_RF50_100-800_30at_200umss_100x205,DHB Neg MS1,negative,101,612,DHB,Orbitrap,,
+spotting,2020-08-04_14h06m47s,2020-08-04_09h59m07s,2020-08-03_ME_SlideA_DHB_Neg_AIF_RF100_10eV_ISCID_100-800_30at_200umss_100x205,DHB Neg AIF,negative,102,634,DHB,Orbitrap,,
+spotting,2020-08-11_15h28m01s,2020-08-06_22h56m24s,2020-08-06_ME_SlideB_DAN_Neg_MS1_RF50_100-800_30at_200umss_100x220,DAN Neg MS1,negative,107,634,DAN,Orbitrap,,
+spotting,2020-08-11_15h28m27s,2020-08-07_15h35m37s,2020-08-06_ME_SlideB_DAN_Neg_AIF_RF100_100-800_30at_200umss_100x220,DAN Neg AIF,negative,107,634,DAN,Orbitrap,,
+spotting,2020-08-11_15h28m38s,2020-08-07_15h01m22s,2020-08-06_ME_SlideB_DAN_Pos_MS1_RF50_100-800_30at_200umss_100x220,DAN Pos MS1,positive,100,761,DAN,Orbitrap,,
+spotting,2020-08-11_16h49m43s,2020-08-07_23h24m28s,2020-08-06_ME_SlideB_DAN_Pos_AIF_RF100_10eV_ISCID_100-800_30at_200umss_100x220,DAN Pos AIF,positive,100,770,DAN,Orbitrap,,
+whole_body,2020-05-26_17h57m50s,2016-09-21_16h07m45s,Technologie_Servier//TES-WBrat-vehicle,Technologie_Servier_TES_WBrat_vehicle,positive,241,816,DHB,FTICR,rat,Whole organism
+whole_body,2020-05-26_17h57m53s,2017-05-17_19h49m04s,whole body xenograft (1) [RMS norm],whole_body_xenograft_1_RMS_norm,positive,151,634,DHB,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h57m57s,2017-05-17_19h50m07s,wb xenograft trp pathway dosed- rms_corrected,wb_xenograft_trp_pathway_dosed_rms_corrected,positive,108,638,DHB,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m00s,2017-05-29_07h28m52s,servier_TT_mouse_wb_fmpts_derivatization_CHCA,servier_TT_mouse_wb_fmpts_derivatization_CHCA,positive,184,898,CHCA,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m04s,2017-07-24_19h42m31s,Servier_Ctrl_mouse_wb_lateral_plane_9aa,Servier_Ctrl_mouse_wb_lateral_plane_9aa,negative,180,888,9AA,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m08s,2017-07-26_18h25m14s,Servier_Ctrl_mouse_wb_median_plane_9aa,Servier_Ctrl_mouse_wb_median_plane_9aa,negative,180,888,9AA,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m11s,2017-08-03_15h09m06s,Servier_Ctrl_mouse_wb_median_plane_chca,Servier_Ctrl_mouse_wb_median_plane_chca,positive,160,835,CHCA,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m15s,2017-08-03_15h09m51s,Servier_Ctrl_mouse_wb_lateral_plane_chca,Servier_Ctrl_mouse_wb_lateral_plane_chca,positive,160,807,CHCA,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m19s,2017-08-11_07h59m58s,Servier_Ctrl_mouse_wb_lateral_plane_DHB,Servier_Ctrl_mouse_wb_lateral_plane_DHB,positive,155,882,DHB,FTICR,mouse,Whole organism
+whole_body,2020-05-26_17h58m22s,2017-08-11_08h01m02s,Servier_Ctrl_mouse_wb_median_plane_DHB,Servier_Ctrl_mouse_wb_median_plane_DHB,positive,154,882,DHB,FTICR,mouse,Whole organism
+high_quality,2020-05-18_17h08m38s,2017-07-21_14h46m39s,epik_dhb_head_ito01_06,epik_dhb_head_ito01_06,positive,103,956,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h08m40s,2018-08-01_14h23m16s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h08m42s,2017-08-25_07h57m51s,201708024_CGL230817_MT-D.O_123x102_100x100,201708024_CGL230817_MT_D_O_123x102_100x100,negative,152,891,DAN,Orbitrap,mouse,Brain | Lung | Liver | Heart | Kidney | Muscle
+high_quality,2020-05-18_17h08m44s,2017-03-14_06h00m37s,20170221_rat_dan-neg-reg2,20170221_rat_dan_neg_reg2,negative,281,910,DAN,FTICR,rat,Brain
+high_quality,2020-05-18_17h08m47s,2017-12-11_15h07m56s,epi3_dhb_tail_ito08_46,epi3_dhb_tail_ito08_46,positive,162,960,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h08m49s,2017-07-20_14h23m17s,epik_dhb_head_ito08_47,epik_dhb_head_ito08_47,positive,258,954,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h08m51s,2019-07-09_11h25m35s,MPIMM_177_QE_P_Medulis,MPIMM_177_QE_P_Medulis,positive,311,887,DHAP,Orbitrap,Mytilus edulis,Foot
+high_quality,2020-05-18_17h08m54s,2019-03-06_23h29m19s,18_142_DHB_20um_S11,18_142_DHB_20um_S11,positive,102,908,DHB,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h08m56s,2018-05-20_22h50m27s,ScNerve_5Top_20um,ScNerve_5Top_20um,positive,104,954,DHB,Orbitrap,mouse,Sciatic nerve
+high_quality,2020-05-18_17h08m58s,2016-12-21_14h07m58s,20161221_ADP_spots_DHB_20x20_125x125,20161221_ADP_spots_DHB_20x20_125x125,negative,135,506,DHB,Orbitrap,,
+high_quality,2020-05-18_17h09m01s,2017-08-04_12h33m17s,epik_dhb_head_ito05_26,epik_dhb_head_ito05_26,positive,177,982,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m03s,2019-09-10_14h25m54s,090919_SangerBrainSample1_UniMatrix_150x150_NEG.RAW,090919_SangerBrainSample1_UniMatrix_150x150_NEG_RAW,negative,78,492,Universal DHB CHCA,Orbitrap,mouse,Brain
+high_quality,2020-05-18_17h09m05s,2018-10-07_12h42m25s,20181002_grapest12_bpyn_final - root mean square,20181002_grapest12_bpyn_final_root_mean_square,negative,105,972,BPYN,FTICR,Vitis vinifera,Berry
+high_quality,2020-05-18_17h09m07s,2017-07-18_10h11m46s,epik_dhb_head_ito03_16,epik_dhb_head_ito03_16,positive,177,958,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m10s,2019-11-15_20h55m40s,17-635-002_Slice7_30um_11142019,17_635_002_Slice7_30um_11142019,negative,61,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h09m13s,2016-12-16_22h07m51s,20161216_LR_sample1_dhb10_rec2_space10_att20_rep2_20x20,20161216_LR_sample1_dhb10_rec2_space10_att20_rep2_20x20,positive,191,354,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h09m15s,2017-08-01_07h40m37s,epik_dhb_head_ito07_38,epik_dhb_head_ito07_38,positive,177,969,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m17s,2017-12-20_16h31m52s,20171207_M9_CoCulture__DAN003_p50_s50_pos,20171207_M9_CoCulture__DAN003_p50_s50_pos,positive,300,893,DAN,Orbitrap,human | mouse,Kidney | Muscle
+high_quality,2020-05-18_17h09m19s,2017-08-08_09h04m59s,epik_dhb_head_ito11_54,epik_dhb_head_ito11_54,positive,258,960,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m21s,2017-02-09_19h49m02s,20170209_LR_t84_Stm_1_50x50_50x50_DHB5,20170209_LR_t84_Stm_1_50x50_50x50_DHB5,positive,151,749,DHB,Orbitrap,human,Gut
+high_quality,2020-05-18_17h09m24s,2018-09-13_00h55m56s,K233_P1_BottomN1_50um,K233_P1_BottomN1_50um,positive,104,835,DHB,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h09m27s,2017-08-09_10h06m42s,epik_dhb_head_ito13_61,epik_dhb_head_ito13_61,positive,258,956,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m30s,2017-03-14_06h02m26s,20170221_rat_dan-neg-reg3,20170221_rat_dan_neg_reg3,negative,281,914,DAN,FTICR,rat,Brain
+high_quality,2020-05-18_17h09m33s,2019-01-17_19h54m30s,181108_Control_Lungs_100umNeg_107by108_atn15,181108_Control_Lungs_100umNeg_107by108_atn15,negative,300,1181,DAN,Orbitrap,mouse,Lung
+high_quality,2020-05-18_17h09m35s,2017-01-19_15h48m03s,150616_BPYN_Rat_Brain_NEG_centroid_jul22_maxof1_med5,150616_BPYN_Rat_Brain_NEG_centroid_jul22_maxof1_med5,negative,255,1544,BPYN,FTICR,mouse,Brain
+high_quality,2020-05-18_17h09m37s,2016-12-16_22h08m42s,20161216_LR_sample1_dhb10_rec2_space10_att20_rep5_20x20,20161216_LR_sample1_dhb10_rec2_space10_att20_rep5_20x20,positive,213,354,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h09m39s,2017-08-09_03h02m01s,170801_NEG_CTR_08-070_bpyn_rms,170801_NEG_CTR_08_070_bpyn_rms,negative,112,1524,BPYN,FTICR,human,Brain
+high_quality,2020-05-18_17h09m42s,2017-08-08_14h30m25s,epik_dhb_head_ito12_58,epik_dhb_head_ito12_58,positive,258,954,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h09m45s,2016-12-16_22h12m34s,20161216_LR_sample4_dhb15_rec1_space50_att20_rep2_20x20,20161216_LR_sample4_dhb15_rec1_space50_att20_rep2_20x20,positive,177,354,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h09m48s,2018-08-01_14h16m31s,nam 02 02 glio 6 - total ion count,nam_02_02_glio_6_total_ion_count,positive,137,912,DHA,FTICR,human,Brain
+high_quality,2020-05-18_17h09m50s,2019-06-21_13h02m14s,MPIMM_155_QE_P_SGR_CF,MPIMM_155_QE_P_SGR_CF,positive,103,366,SDHB,Orbitrap,Posidonia oceanica,root
+high_quality,2020-05-18_17h09m53s,2018-10-16_09h53m21s,181012_CAF01-TRIS_100umNeg_127by109_atn28,181012_CAF01_TRIS_100umNeg_127by109_atn28,negative,303,914,DAN,Orbitrap,mouse,Lung
+high_quality,2020-05-18_17h09m56s,2017-08-03_12h25m10s,region20170803 - root mean square,region20170803_root_mean_square,negative,140,836,9AA,FTICR,mouse,Whole organism
+high_quality,2020-05-18_17h09m58s,2019-08-02_22h43m20s,H009_Slice3_100um_08022019,H009_Slice3_100um_08022019,positive,100,934,DHB,Orbitrap,mouse,Kidney
+high_quality,2020-05-18_17h10m00s,2017-12-20_16h27m04s,20171207_M5_CoCulture__DAN003_p50_s50_neg,20171207_M5_CoCulture__DAN003_p50_s50_neg,negative,301,914,DAN,Orbitrap,human | mouse,Kidney | Muscle
+high_quality,2020-05-18_17h10m02s,2017-08-02_00h09m50s,170801_NEG_CTR_04-273_bpyn_rms,170801_NEG_CTR_04_273_bpyn_rms,negative,214,1524,BPYN,FTICR,human,Brain
+high_quality,2020-05-18_17h10m04s,2016-11-15_12h00m00s,UoR1//Sample5F1_patient4_DHB-recal,UoR1_Sample5F1_patient4_DHB_recal,positive,102,879,DHB,FTICR,human,Lung
+high_quality,2020-05-18_17h10m06s,2017-08-04_12h34m05s,epik_dhb_head_ito05_27,epik_dhb_head_ito05_27,positive,258,969,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m08s,2018-07-05_10h44m16s,180407_Biomarker_normpig_DAN_40um_165by70_atn0,180407_Biomarker_normpig_DAN_40um_165by70_atn0,negative,153,916,DAN,Orbitrap,pig,Skin
+high_quality,2020-05-18_17h10m10s,2017-12-20_16h32m25s,20171207_M10_CoCulture__DAN003_p50_s50_neg,20171207_M10_CoCulture__DAN003_p50_s50_neg,negative,302,910,DAN,Orbitrap,human | mouse,Kidney | Muscle
+high_quality,2020-05-18_17h10m12s,2017-12-20_16h24m55s,20171206_NIH3T3_CoCulture__DAN003_p50_s50_pos,20171206_NIH3T3_CoCulture__DAN003_p50_s50_pos,positive,322,865,DAN,Orbitrap,mouse,Muscle
+high_quality,2020-05-18_17h10m14s,2016-12-19_19h31m16s,20161219_LR_dhb5_rec1_space50_att32_50x50_hepatocytes,20161219_LR_dhb5_rec1_space50_att32_50x50_hepatocytes,positive,173,704,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h10m16s,2019-06-07_00h02m45s,18-312-4_3_1_30um_06062019,18_312_4_3_1_30um_06062019,negative,96,914,DAN,Orbitrap,human | mouse,Kidney
+high_quality,2020-05-18_17h10m18s,2018-08-01_14h19m50s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h10m20s,2017-08-01_07h45m10s,epik_dhb_head_ito06_32,epik_dhb_head_ito06_32,positive,258,956,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m23s,2016-09-22_11h16m40s,Brain01_Bregma-3-88b_centroid,Brain01_Bregma_3_88b_centroid,positive,184,873,CHCA,FTICR,mouse,Brain
+high_quality,2020-05-18_17h10m26s,2017-01-25_17h34m34s,20170125_VS_Disc14_DMAN_sub_long_25x25_10x10,20170125_VS_Disc14_DMAN_sub_long_25x25_10x10,negative,150,862,DMAN,Orbitrap,,
+high_quality,2020-05-18_17h10m28s,2018-08-01_14h20m09s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h10m31s,2018-10-29_11h02m58s,26102018_SHA_brainDAN_p100_s80,26102018_SHA_brainDAN_p100_s80,negative,59,481,DAN,Orbitrap,mouse,Brain
+high_quality,2020-05-18_17h10m33s,2017-03-16_09h28m17s,MPIMM_048_QE_P_BA_CF_sp1,MPIMM_048_QE_P_BA_CF_sp1,positive,58,260,CHCA,Orbitrap,Mussel,Gill
+high_quality,2020-05-18_17h10m35s,2018-11-21_21h31m33s,biopsy_no_thaw_casi_lipds,biopsy_no_thaw_casi_lipds,positive,612,978,DHB,FTICR,human,kidney
+high_quality,2020-05-18_17h10m38s,2019-10-04_17h59m03s,17-635-007_Slice3_30um_10032019,17_635_007_Slice3_30um_10032019,negative,61,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h10m41s,2017-08-08_09h06m39s,epik_dhb_head_ito11_56,epik_dhb_head_ito11_56,positive,258,969,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m42s,2019-09-12_00h13m11s,17-635-001_Slice7_20um_09102019,17_635_001_Slice7_20um_09102019,negative,73,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h10m45s,2017-03-11_19h48m10s,20170311_LR_Hepa_DAN10_att35_60x60_10x10,20170311_LR_Hepa_DAN10_att35_60x60_10x10,negative,152,454,DAN,Orbitrap,human,Liver
+high_quality,2020-05-18_17h10m47s,2016-12-16_22h08m07s,20161216_LR_sample1_dhb10_rec2_space10_att20_rep3_20x20,20161216_LR_sample1_dhb10_rec2_space10_att20_rep3_20x20,positive,191,354,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h10m48s,2018-08-01_14h28m11s,nam 02 02 glio 6 - total ion count,nam_02_02_glio_6_total_ion_count,positive,137,912,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h10m50s,2017-08-04_12h32m36s,epik_dhb_head_ito05_25,epik_dhb_head_ito05_25,positive,177,969,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m53s,2018-10-06_02h51m57s,MR_Top1_20um,MR_Top1_20um,positive,100,910,DHB,Orbitrap,mouse,Retina
+high_quality,2020-05-18_17h10m55s,2017-08-04_12h34m49s,epik_dhb_head_ito05_28,epik_dhb_head_ito05_28,positive,258,958,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m57s,2017-08-04_12h38m34s,epik_dhb_head_ito09_50,epik_dhb_head_ito09_50,positive,258,954,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h10m59s,2018-07-31_16h20m14s,MPIMM_102_QE_P_KT_MeOH,MPIMM_102_QE_P_KT_MeOH,positive,97,541,DHB,Orbitrap,Ciliate,Whole organism
+high_quality,2020-05-18_17h11m01s,2018-10-12_09h25m16s,181009_CAF01_Trehalose_100umNeg_112by141_atn28,181009_CAF01_Trehalose_100umNeg_112by141_atn28,negative,301,914,DAN,Orbitrap,mouse,Lung
+high_quality,2020-05-18_17h11m03s,2019-03-22_10h16m54s,20190321_VS_metabolite_std_test_1_DHB,20190321_VS_metabolite_std_test_1_DHB,positive,81,298,DHB,Orbitrap,,
+high_quality,2020-05-18_17h11m06s,2016-09-22_11h16m23s,UoR1//16ag01475_02d,UoR1_16ag01475_02d,positive,184,882,CHCA,FTICR,mouse,Pancreas
+high_quality,2020-05-18_17h11m09s,2017-08-09_01h24m04s,170801_NEG_Diseased_04-016_bpyn_rms,170801_NEG_Diseased_04_016_bpyn_rms,negative,112,1524,BPYN,FTICR,human,Brain
+high_quality,2020-05-18_17h11m11s,2018-05-19_20h09m31s,19052018_AR_Tetracycline5_p5x5_DAN,19052018_AR_Tetracycline5_p5x5_DAN,negative,301,456,DAN,Orbitrap,None,None
+high_quality,2020-05-18_17h11m13s,2019-09-12_00h42m06s,17-635-001_Slice6_30um_09112019,17_635_001_Slice6_30um_09112019,negative,96,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h11m15s,2018-08-01_14h23m58s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h11m17s,2017-08-18_16h00m58s,20170818_CGL_MT-M.B_ATP_3_DAN018_NTM_87x106_100x100,20170818_CGL_MT_M_B_ATP_3_DAN018_NTM_87x106_100x100,negative,152,891,DAN,Orbitrap,mouse,Brain
+high_quality,2020-05-18_17h11m20s,2018-10-17_22h21m06s,MR_Bottom2_20um,MR_Bottom2_20um,positive,104,908,DHB,Orbitrap,mouse,Retina
+high_quality,2020-05-18_17h11m22s,2017-08-04_12h39m49s,epik_dhb_head_ito09_51,epik_dhb_head_ito09_51,positive,258,954,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h11m25s,2017-07-21_09h23m33s,epik_dhb_head_ito08_44,epik_dhb_head_ito08_44,positive,177,954,DHB,FTICR,rat,Epididymis
+high_quality,2020-05-18_17h11m28s,2018-09-01_00h55m05s,PS_8Bottom_N1_50um,PS_8Bottom_N1_50um,positive,104,908,DHB,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h11m30s,2018-08-01_14h27m24s,nam 02 02 glio 6 - total ion count,nam_02_02_glio_6_total_ion_count,positive,137,912,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h11m32s,2019-08-21_01h08m10s,17-635-001_S3_1_30um_08202019,17_635_001_S3_1_30um_08202019,negative,78,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h11m34s,2018-07-14_04h53m26s,DRG_P1_TN5_50um,DRG_P1_TN5_50um,positive,104,1061,DHB,Orbitrap,human,Dorsal root ganglion
+high_quality,2020-05-18_17h11m36s,2018-10-16_01h42m26s,181622_nocmc_0days_recalib,181622_nocmc_0days_recalib,positive,269,837,DHB,FTICR,human,Kidney
+high_quality,2020-05-18_17h11m39s,2017-09-08_17h00m55s,20170908_CGL280817_MT-D.O_3_67x82_150x150,20170908_CGL280817_MT_D_O_3_67x82_150x150,negative,151,891,DAN,Orbitrap,mouse,Brain | Lung | Liver | Heart | Kidney | Muscle
+high_quality,2020-05-18_17h11m42s,2017-08-15_15h02m08s,20170815_CGL_MT-M.B_DAN012_NTM_42x30_100x100,20170815_CGL_MT_M_B_DAN012_NTM_42x30_100x100,negative,152,891,DAN,Orbitrap,mouse,Brain
+high_quality,2020-05-18_17h11m44s,2016-12-16_22h10m19s,20161216_LR_sample3_dhb5_rec0_space25_att20_rep3_20x20,20161216_LR_sample3_dhb5_rec0_space25_att20_rep3_20x20,positive,191,354,DHB,Orbitrap,human,Liver
+high_quality,2020-05-18_17h11m46s,2016-09-22_11h16m15s,UR1//16ag01475_01g_centroid,UR1_16ag01475_01g_centroid,positive,184,910,CHCA,FTICR,mouse,Pancreas
+high_quality,2020-05-18_17h11m48s,2018-11-08_15h29m23s,Human_coagulation zone_neg ion mode,Human_coagulation_zone_neg_ion_mode,negative,225,914,DAN,Orbitrap,Human,Skin
+high_quality,2020-05-18_17h11m50s,2017-03-14_05h54m15s,20170221_rat_bpyn-neg-reg6,20170221_rat_bpyn_neg_reg6,negative,281,1544,BPYN,FTICR,rat,Brain
+high_quality,2020-05-18_17h11m53s,2019-10-26_00h11m01s,F4_20um_10242019,F4_20um_10242019,negative,89,886,DAN,Orbitrap,human | mouse,Kidney
+high_quality,2020-05-18_17h11m55s,2018-09-14_18h15m42s,k233_combined three datasets,k233_combined_three_datasets,positive,348,1061,DHB,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h11m57s,2019-01-25_05h18m40s,181016_eye_bpyn_19- total ion count,181016_eye_bpyn_19_total_ion_count,negative,104,1520,BPYN,FTICR,mouse,Eye
+high_quality,2020-05-18_17h11m59s,2018-01-04_14h36m35s,m-wthz-dhb,m_wthz_dhb,positive,177,954,DHB,FTICR,mouse,Muscle
+high_quality,2020-05-18_17h12m01s,2017-03-14_05h57m36s,20170221_rat_bpyn-pos-reg1,20170221_rat_bpyn_pos_reg1,positive,694,857,BPYN,FTICR,rat,Brain
+high_quality,2020-05-18_17h12m03s,2019-05-31_20h44m58s,B5_3_20um_05242019,B5_3_20um_05242019,negative,96,912,DAN,Orbitrap,human | mouse,Kidney
+high_quality,2020-05-18_17h12m05s,2018-08-01_11h05m36s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHA,FTICR,human,Brain
+high_quality,2020-05-18_17h12m07s,2018-08-01_14h23m33s,nam 02 02 epi 3 - total ion count,nam_02_02_epi_3_total_ion_count,positive,137,868,DHB,FTICR,human,Brain
+high_quality,2020-05-18_17h12m09s,2019-06-25_21h52m46s,Brain_1_30um_06242019,Brain_1_30um_06242019,negative,111,910,DAN,Orbitrap,human | mouse,Brain
+high_quality,2020-05-18_17h12m11s,2019-06-21_08h59m52s,MPIMM_154_QE_P_SGR_CF,MPIMM_154_QE_P_SGR_CF,positive,107,542,DHAP,Orbitrap,Posidonia oceanica,root
+high_quality,2020-05-18_17h12m14s,2017-12-07_17h00m26s,20171206_HEK293_CoCulture__DAN003_p50_s50_pos,20171206_HEK293_CoCulture__DAN003_p50_s50_pos,positive,322,888,DAN,Orbitrap,human,Kidney
+high_quality,2020-05-18_17h12m16s,2019-06-25_16h15m15s,MPIMM_159_QE_P_MetaMix,MPIMM_159_QE_P_MetaMix,positive,95,527,DHAP,Orbitrap,,
+high_quality,2020-05-18_17h12m18s,2019-07-04_09h50m41s,MPIMM_171_QE_P_BH_CF,MPIMM_171_QE_P_BH_CF,positive,311,1074,DHAP,Orbitrap,Bathymodiolus heckerae,Gill
+tissue_spotted,2020-12-07_16h04m26s,2020-12-05_16h18m40s,2020-12-05_ME_X190_L1_Spotted_150umss_50x60_30at_DAN_Neg,Tissue Spot DAN Neg high-res,negative,100,1000,DAN,Orbitrap,mouse,Liver
+tissue_spotted,2020-12-07_16h04m14s,2020-12-05_19h33m25s,2020-12-05_ME_X190_L1_Spotted_150umss_50x60_30at_DAN_Pos,Tissue Spot DAN Pos,positive,100,1000,DAN,Orbitrap,mouse,Liver
+tissue_spotted,2020-12-07_16h03m36s,2020-12-07_03h16m14s,2020-12-05_ME_X190_L1_Spotted_20umss_375x450_33at_DAN_Neg,Tissue Spot DAN Neg,negative,100,1000,DAN,Orbitrap,mouse,Liver

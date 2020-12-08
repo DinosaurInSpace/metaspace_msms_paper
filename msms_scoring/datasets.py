@@ -6,6 +6,7 @@ datasets_df = pd.read_csv('input/datasets.csv')
 dataset_ids = datasets_df.ds_id[datasets_df.set == 'spotting'].to_list()
 whole_body_ds_ids = datasets_df.ds_id[datasets_df.set == 'whole_body'].to_list()
 high_quality_ds_ids = datasets_df.ds_id[datasets_df.set == 'high_quality'].to_list()
+tissue_spotted_ds_ids = datasets_df.ds_id[datasets_df.set == 'tissue_spotted'].to_list()
 
 
 # Optional aliases for datasets that have long names
@@ -24,6 +25,7 @@ dataset_ms_mode = {
 }
 
 msms_mol_ids = set(pd.read_csv('./spotting/msms_spotted_mols.csv').hmdb_id)
+tissue_spotted_mol_ids = set(pd.read_csv('./spotting/tissue_spotted_mols.csv').hmdb_id)
 
 # Optional lists mapping dataset IDs to sets of HMDB IDs for molecules that are expected
 dataset_mol_lists = {
@@ -35,4 +37,7 @@ dataset_mol_lists = {
     '2020-08-11_15h28m27s': msms_mol_ids,
     '2020-08-11_15h28m38s': msms_mol_ids,
     '2020-08-11_16h49m43s': msms_mol_ids,
+    '2020-12-07_16h04m26s': tissue_spotted_mol_ids,
+    '2020-12-07_16h04m14s': tissue_spotted_mol_ids,
+    '2020-12-07_16h03m36s': tissue_spotted_mol_ids,
 }
